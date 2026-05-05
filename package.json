@@ -1,0 +1,12 @@
+{
+  "type": "module",
+  "scripts": {
+    "send-report": "node scripts/send-report.js"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2",
+    "playwright": "^1.56.0",
+    "serve": "^14.2.6",
+    "wait-on": "^9.0.5"
+  }
+}

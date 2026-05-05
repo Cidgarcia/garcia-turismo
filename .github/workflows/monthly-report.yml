@@ -1,0 +1,38 @@
+name: Relatório mensal Garcia Turismo
+
+on:
+  schedule:
+    - cron: "0 11 1 * *"
+  workflow_dispatch:
+
+jobs:
+  send-report:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar projeto
+        uses: actions/checkout@v4
+
+      - name: Instalar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar dependências
+        run: npm install
+
+      - name: Instalar navegador Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Subir servidor local
+        run: npx serve . -l 5500 &
+
+      - name: Aguardar servidor
+        run: npx wait-on http://127.0.0.1:5500/report.html
+
+      - name: Enviar relatório
+        run: npm run send-report
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}

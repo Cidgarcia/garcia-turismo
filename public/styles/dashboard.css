@@ -1,0 +1,82 @@
+/* Ajustes específicos do dashboard */
+.kpi-grid {
+  align-items: stretch;
+}
+
+.kpi-stack {
+  min-height: 100%;
+}
+
+.kpi-centered {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.report-print-body {
+  background: #f1f5f9;
+}
+
+.report-print-page {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.report-print-page #reportArea {
+  width: 100%;
+  overflow: visible;
+}
+
+.report-print-page .table-wrap {
+  overflow: visible;
+}
+
+.report-print-page table {
+  width: 100%;
+  table-layout: auto;
+  font-size: 11px;
+}
+
+.report-print-page th,
+.report-print-page td {
+  white-space: normal;
+  vertical-align: top;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  .report-print-page {
+    max-width: none;
+    width: 100%;
+    padding: 0;
+  }
+
+  .card {
+    box-shadow: none !important;
+    border-radius: 24px !important;
+  }
+
+  .table-wrap {
+    overflow: visible !important;
+  }
+
+  table {
+    width: 100% !important;
+    font-size: 10px !important;
+  }
+
+  th,
+  td {
+    padding: 8px 6px !important;
+  }
+}
