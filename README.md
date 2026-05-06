@@ -1,26 +1,54 @@
-# Garcia Turismo
+# 🚍 Garcia Turismo | Gestão Financeira
 
-Sistema financeiro e de frota da Garcia Turismo.
+Sistema completo de gestão financeira para controle de despesas, veículos, funcionários e geração automática de relatórios em PDF.
 
-## Abrir o projeto
+---
 
-Use Live Server no VS Code ou rode:
+## Funcionalidades
 
-```bash
-python -m http.server 8000
-```
+- 📊 Dashboard financeiro
+- 🚗 Controle por veículo
+- 👨‍💼 Controle por funcionário
+- ⛽ Controle de combustível
+- 📅 Filtros por período
+- 📄 Geração de relatórios em PDF (automático)
+- ☁️ Persistência em nuvem (Supabase)
+- 📧 Envio automático de relatórios por email (Resend)
+- ⚙️ Automação mensal (GitHub Actions)
 
-Acesse:
+---
 
-```text
-http://localhost:8000
-```
+## 🏗️ Arquitetura
 
-## Arquivo de entrada
+| Camada     | Tecnologia           |
+| ---------- | -------------------- |
+| Frontend   | HTML + JS + Tailwind |
+| Backend    | Supabase (BaaS)      |
+| Automação  | GitHub Actions       |
+| PDF Engine | Playwright           |
+| Email      | Resend API           |
 
-O arquivo principal é `index.html`, mas ele só carrega CSS e `src/app.js`.
+---
 
-## Documentação
+## 📁 Estrutura do Projeto
 
-- `README_PROFISSIONAL.md`: arquitetura do projeto
-- `README_SUPABASE.md`: configuração de banco/login online
+garcia-turismo/
+│
+├── public/ # Frontend
+│ ├── index.html
+│ ├── report.html
+│ ├── assets/
+│ ├── styles/
+│ └── src/
+│
+├── scripts/ # Automação (PDF + envio)
+│ └── send-report.js
+│
+├── .github/
+│ └── workflows/
+│ └── monthly-report.yml
+│
+├── package.json
+└── README.md
+
+---
