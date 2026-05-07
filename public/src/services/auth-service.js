@@ -1,19 +1,19 @@
-import { sessionService } from './session-service.js';
-import { supabaseService } from './supabase-service.js';
+import { sessionService } from "./session-service.js";
+import { supabaseService } from "./supabase-service.js";
 
-const LOCAL_USERS = [
-  { username: 'admin', password: '123456', label: 'Admin' },
-  { username: 'junior', password: 'GARCIA2017', label: 'Junior' }
-];
+const user = process.env.AUTH_USER;
+const password = process.env.AUTH_PASSWORD;
 
-function normalizeUser(value = '') {
+function normalizeUser(value = "") {
   return String(value).trim().toLowerCase();
 }
 
 function findLocalAccount(user, password) {
-  return LOCAL_USERS.find((item) => (
-    item.username === normalizeUser(user) && item.password === String(password).trim()
-  ));
+  return LOCAL_USERS.find(
+    (item) =>
+      item.username === normalizeUser(user) &&
+      item.password === String(password).trim(),
+  );
 }
 
 export const authService = {
@@ -30,14 +30,19 @@ export const authService = {
     const localAccount = findLocalAccount(user, password);
     if (localAccount) {
       this.setSession(true);
-      return { mode: 'local', user: localAccount.label };
+      return { mode: "local", user: localAccount.label };
     }
     if (this.isCloudEnabled()) {
-      const session = await supabaseService.signIn(String(user).trim(), String(password).trim());
+      const session = await supabaseService.signIn(
+        String(user).trim(),
+        String(password).trim(),
+      );
       this.setSession(true);
-      return { mode: 'supabase', user: session?.user?.email || user };
+      return { mode: "supabase", user: session?.user?.email || user };
     }
-    throw new Error('Usuario ou senha invalidos. Use admin / 123456 ou junior / GARCIA2017.');
+    throw new Error(
+      "Usuario ou senha invalidos. Use admin / 123456 ou junior / GARCIA2017.",
+    );
   },
   async signOut() {
     if (this.isCloudEnabled()) {
@@ -45,5 +50,5 @@ export const authService = {
       await supabaseService.signOut();
     }
     this.setSession(false);
-  }
+  },
 };
