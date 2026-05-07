@@ -95,15 +95,55 @@ export const supabaseService = {
     return lastSave;
   },
 
-  async signIn() {
-    return null;
+  async signIn(email, password) {
+    const sb = await getClient();
+
+    if (!sb) {
+      throw new Error("Supabase não configurado.");
+    }
+
+    const { data, error } = await sb.auth.signInWithPassword({
+      email: String(email).trim(),
+      password: String(password).trim(),
+    });
+
+    if (error) {
+      throw new Error("E-mail ou senha inválidos.");
+    }
+
+    return data.session;
   },
 
   async signOut() {
+    const sb = await getClient();
+
+    if (!sb) {
+      return true;
+    }
+
+    const { error } = await sb.auth.signOut();
+
+    if (error) {
+      console.error("Erro ao sair do Supabase:", error);
+    }
+
     return true;
   },
 
   async getSession() {
-    return null;
+    const sb = await getClient();
+
+    if (!sb) {
+      return null;
+    }
+
+    const { data, error } = await sb.auth.getSession();
+
+    if (error) {
+      console.error("Erro ao buscar sessão:", error);
+      return null;
+    }
+
+    return data.session;
   },
 };
