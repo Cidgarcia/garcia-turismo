@@ -32,23 +32,23 @@ Sistema completo de gestão financeira para controle de despesas, veículos, fun
 
 ## 📁 Estrutura do Projeto
 
+```text
 garcia-turismo/
 │
-├── public/ # Frontend
-│ ├── index.html
-│ ├── report.html
-│ ├── assets/
-│ ├── styles/
-│ └── src/
+├── public/                 # Frontend
+│   ├── index.html
+│   ├── report.html
+│   ├── favicon.png
+│   ├── assets/
+│   ├── styles/
+│   └── src/
 │
-├── scripts/ # Automação (PDF + envio)
-│ └── send-report.js
+├── scripts/                # Automação: PDF + envio
+│   └── send-report.js
 │
 ├── .github/
-│ └── workflows/
-│ └── monthly-report.yml
+│   └── workflows/
+│       └── monthly-report.yml
 │
 ├── package.json
 └── README.md
-
----
