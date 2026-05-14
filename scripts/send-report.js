@@ -6,7 +6,7 @@ const EMAIL = "augustjuniorleitte@gmail.com";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const STATE_ID = "garcia_turismo_main";
 
@@ -14,8 +14,10 @@ if (!RESEND_API_KEY) {
   throw new Error("Faltou configurar RESEND_API_KEY");
 }
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  throw new Error("Faltou configurar SUPABASE_URL ou SUPABASE_KEY");
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error(
+    "Faltou configurar SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY",
+  );
 }
 
 async function buscarDados() {
@@ -23,8 +25,8 @@ async function buscarDados() {
     `${SUPABASE_URL}/rest/v1/app_states?id=eq.${STATE_ID}&select=data`,
     {
       headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
       },
     },
   );
@@ -40,32 +42,32 @@ async function buscarDados() {
 async function gerarPdf(browser, url, nome) {
   const page = await browser.newPage();
 
-  await page.goto(url, { waitUntil: "networkidle" });
+  try {
+    await page.goto(url, { waitUntil: "networkidle" });
 
-  // espera a logo carregar
-  await page.waitForSelector("img", { timeout: 5000 });
+    // Espera a página estabilizar antes de gerar o PDF
+    await page.waitForTimeout(1500);
 
-  await page.waitForTimeout(1500);
+    const pdf = await page.pdf({
+      format: "A4",
+      landscape: true,
+      printBackground: true,
+      preferCSSPageSize: true,
+      margin: {
+        top: "8mm",
+        right: "8mm",
+        bottom: "8mm",
+        left: "8mm",
+      },
+    });
 
-  const pdf = await page.pdf({
-    format: "A4",
-    landscape: true,
-    printBackground: true,
-    preferCSSPageSize: true,
-    margin: {
-      top: "8mm",
-      right: "8mm",
-      bottom: "8mm",
-      left: "8mm",
-    },
-  });
-
-  await page.close();
-
-  return {
-    filename: nome,
-    content: pdf.toString("base64"),
-  };
+    return {
+      filename: nome,
+      content: pdf.toString("base64"),
+    };
+  } finally {
+    await page.close();
+  }
 }
 
 async function enviarEmail(attachments) {
@@ -111,30 +113,34 @@ async function main() {
   const browser = await chromium.launch();
   const arquivos = [];
 
-  arquivos.push(
-    await gerarPdf(
-      browser,
-      `${SITE_BASE_URL}/report.html?title=Relatório Geral`,
-      "relatorio-geral.pdf",
-    ),
-  );
-
-  for (const vehicle of vehicles) {
-    const nomeVeiculo = `${vehicle.modelo || "veiculo"}-${vehicle.ano || ""}`
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "");
-
+  try {
     arquivos.push(
       await gerarPdf(
         browser,
-        `${SITE_BASE_URL}/report.html?vehicleId=${vehicle.id}&title=Relatório ${encodeURIComponent(vehicle.modelo || "Veículo")}`,
-        `relatorio-${nomeVeiculo}.pdf`,
+        `${SITE_BASE_URL}/report.html?title=Relatório Geral`,
+        "relatorio-geral.pdf",
       ),
     );
-  }
 
-  await browser.close();
+    for (const vehicle of vehicles) {
+      const nomeVeiculo = `${vehicle.modelo || "veiculo"}-${vehicle.ano || ""}`
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "");
+
+      arquivos.push(
+        await gerarPdf(
+          browser,
+          `${SITE_BASE_URL}/report.html?vehicleId=${vehicle.id}&title=Relatório ${encodeURIComponent(
+            vehicle.modelo || "Veículo",
+          )}`,
+          `relatorio-${nomeVeiculo}.pdf`,
+        ),
+      );
+    }
+  } finally {
+    await browser.close();
+  }
 
   await enviarEmail(arquivos);
 

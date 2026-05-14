@@ -17,6 +17,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
       - name: Instalar dependências
         run: npm install
@@ -25,14 +26,14 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Subir servidor local
-        run: npx serve . -l 5500 &
+        run: npx serve public -l 5500 &
 
       - name: Aguardar servidor
-        run: npx wait-on http://127.0.0.1:5500/report.html
+        run: "npx wait-on http://127.0.0.1:5500/report.html"
 
       - name: Enviar relatório
         run: npm run send-report
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
