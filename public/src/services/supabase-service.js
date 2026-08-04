@@ -18,19 +18,20 @@ export function isConfigured() {
 
 async function getClient() {
   if (!isConfigured()) return null;
-
   if (!client) {
-    const { createClient } =
-      await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm");
+    const { createClient } = await import(
+      "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm"
+    );
 
     client = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, {
       auth: {
-        persistSession: false,
-        autoRefreshToken: false,
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: "garcia-turismo-supabase-auth",
       },
     });
   }
-
   return client;
 }
 
@@ -40,7 +41,6 @@ export const supabaseService = {
   async loadState() {
     const sb = await getClient();
     if (!sb) return null;
-
     const { data, error } = await sb
       .from(SUPABASE_CONFIG.tableName)
       .select("data")
@@ -48,46 +48,39 @@ export const supabaseService = {
       .maybeSingle();
 
     if (error) {
-      console.error("Erro ao carregar Supabase:", error);
+      console.error("Erro ao carregar Supabase:", error.message);
       return null;
     }
-
     return data?.data || null;
   },
 
   async saveStateNow(appData) {
     const sb = await getClient();
     if (!sb) return false;
-
     const payload = {
       id: SUPABASE_CONFIG.stateId,
       data: appData,
       updated_at: new Date().toISOString(),
     };
-
     const { error } = await sb
       .from(SUPABASE_CONFIG.tableName)
       .upsert(payload, { onConflict: "id" });
 
     if (error) {
-      console.error("Erro ao salvar no Supabase:", error);
+      console.error("Erro ao salvar no Supabase:", error.message);
       return false;
     }
-
     return true;
   },
 
   scheduleSave(appData) {
     if (!isConfigured()) return Promise.resolve(false);
-
     clearTimeout(saveTimer);
-
     lastSave = new Promise((resolve) => {
       saveTimer = setTimeout(async () => {
         resolve(await this.saveStateNow(appData));
       }, 600);
     });
-
     return lastSave;
   },
 
@@ -97,53 +90,31 @@ export const supabaseService = {
 
   async signIn(email, password) {
     const sb = await getClient();
-
-    if (!sb) {
-      throw new Error("Supabase não configurado.");
-    }
-
+    if (!sb) throw new Error("Supabase não configurado.");
     const { data, error } = await sb.auth.signInWithPassword({
       email: String(email).trim(),
-      password: String(password).trim(),
+      password: String(password),
     });
-
-    if (error) {
-      throw new Error("E-mail ou senha inválidos.");
-    }
-
+    if (error) throw new Error("E-mail ou senha inválidos.");
     return data.session;
   },
 
   async signOut() {
     const sb = await getClient();
-
-    if (!sb) {
-      return true;
-    }
-
+    if (!sb) return true;
     const { error } = await sb.auth.signOut();
-
-    if (error) {
-      console.error("Erro ao sair do Supabase:", error);
-    }
-
-    return true;
+    if (error) console.error("Erro ao sair do Supabase:", error.message);
+    return !error;
   },
 
   async getSession() {
     const sb = await getClient();
-
-    if (!sb) {
-      return null;
-    }
-
+    if (!sb) return null;
     const { data, error } = await sb.auth.getSession();
-
     if (error) {
-      console.error("Erro ao buscar sessão:", error);
+      console.error("Erro ao buscar sessão:", error.message);
       return null;
     }
-
     return data.session;
   },
 };

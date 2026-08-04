@@ -1,12 +1,20 @@
 {
+  "name": "garcia-turismo",
+  "private": true,
   "type": "module",
   "scripts": {
-    "send-report": "node scripts/send-report.js"
+    "send-report": "node scripts/send-report.js",
+    "backup:export": "node scripts/export-backup.js",
+    "backup:restore": "node scripts/restore-backup.js",
+    "check": "node --check scripts/send-report.js && node --check scripts/export-backup.js && node --check scripts/restore-backup.js && node --check public/src/report/report.js && node --check public/src/services/supabase-service.js"
   },
   "dependencies": {
     "node-fetch": "^3.3.2",
     "playwright": "^1.56.0",
     "serve": "^14.2.6",
     "wait-on": "^9.0.5"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

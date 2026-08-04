@@ -1,0 +1,46 @@
+name: Backup criptografado Garcia Turismo
+
+on:
+  schedule:
+    - cron: "30 12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SUPABASE_STATE_ID: garcia_turismo_main
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Baixar projeto
+        uses: actions/checkout@v4
+
+      - name: Instalar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Criar backup criptografado
+        id: backup
+        run: npm run backup:export
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+
+      - name: Guardar backup criptografado
+        uses: actions/upload-artifact@v4
+        with:
+          name: garcia-turismo-backup-${{ github.run_id }}
+          path: ${{ steps.backup.outputs.backup_file }}
+          if-no-files-found: error
+          retention-days: 90

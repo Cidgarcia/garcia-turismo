@@ -4,10 +4,23 @@ on:
   schedule:
     - cron: "0 11 1 * *"
   workflow_dispatch:
+    inputs:
+      report_month:
+        description: "Mês do relatório (YYYY-MM). Vazio usa o mês anterior."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monthly-report-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   send-report:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Baixar projeto
@@ -20,20 +33,29 @@ jobs:
           cache: npm
 
       - name: Instalar dependências
-        run: npm install
+        run: npm ci
 
       - name: Instalar navegador Playwright
         run: npx playwright install --with-deps chromium
 
+      - name: Validar scripts
+        run: npm run check
+
       - name: Subir servidor local
-        run: npx serve public -l 5500 &
+        run: npx serve public -l 5500 --no-clipboard &
 
       - name: Aguardar servidor
-        run: "npx wait-on http://127.0.0.1:5500/report.html"
+        run: npx wait-on http://127.0.0.1:5500/report.html
 
-      - name: Enviar relatório
+      - name: Gerar e enviar relatórios
         run: npm run send-report
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          REPORT_FROM: ${{ secrets.REPORT_FROM }}
+          REPORT_TO: ${{ secrets.REPORT_TO }}
+          REPORT_REPLY_TO: ${{ secrets.REPORT_REPLY_TO }}
+          REPORT_MONTH: ${{ inputs.report_month }}
+          REPORT_TIME_ZONE: America/Bahia
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_STATE_ID: garcia_turismo_main
