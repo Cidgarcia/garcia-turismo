@@ -40,4 +40,9 @@ export const authService = {
 
     this.setSession(false);
   },
+
+  async getSession() {
+    if (!this.isCloudEnabled()) return null;
+    return supabaseService.getSession();
+  },
 };

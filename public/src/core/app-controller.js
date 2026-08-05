@@ -65,9 +65,11 @@ const monthLabelFormatter = new Intl.DateTimeFormat("pt-BR", {
   year: "numeric",
 });
 
-function escapeHtml(value = "") {
+function sanitizeHTML(value = "") {
   return safeHTML(value);
 }
+
+const escapeHtml = sanitizeHTML;
 
 function addDays(dateStr, amount) {
   const base = new Date(`${dateStr}T00:00:00`);
@@ -242,7 +244,7 @@ function rowStatusBadge(status) {
     return `<span class="status-badge status-pending">A pagar</span>`;
   if (status === "Futuro")
     return `<span class="status-badge status-future">Futuro</span>`;
-  return `<span class="status-badge status-scheduled">${status}</span>`;
+  return `<span class="status-badge status-scheduled">${escapeHtml(status)}</span>`;
 }
 
 function renderSelectOptions() {
@@ -252,18 +254,18 @@ function renderSelectOptions() {
   const cards = state.data.cards;
 
   const vehicleOptions = vehicles
-    .map((v) => `<option value="${v.id}">${getVehicleDisplayName(v)}</option>`)
+    .map((v) => `<option value="${escapeHtml(v.id)}">${escapeHtml(getVehicleDisplayName(v))}</option>`)
     .join("");
   const employeeOptions = employees
-    .map((v) => `<option value="${v.id}">${v.nome} - ${v.cargo}</option>`)
+    .map((v) => `<option value="${escapeHtml(v.id)}">${escapeHtml(v.nome)} - ${escapeHtml(v.cargo)}</option>`)
     .join("");
   const buyerOptions = buyers
-    .map((v) => `<option value="${v.id}">${v.nome}</option>`)
+    .map((v) => `<option value="${escapeHtml(v.id)}">${escapeHtml(v.nome)}</option>`)
     .join("");
   const cardOptions = cards
     .map(
       (v) =>
-        `<option value="${v.id}">${v.nome} (Fecha ${v.fechamento} / Vence ${v.vencimento})</option>`,
+        `<option value="${escapeHtml(v.id)}">${escapeHtml(v.nome)} (Fecha ${Number(v.fechamento) || "-"} / Vence ${Number(v.vencimento) || "-"})</option>`,
     )
     .join("");
 
@@ -292,7 +294,7 @@ function renderSelectOptions() {
     `<option value="">Selecione</option>${cardOptions}`;
   if ($("#tripResponsibleSuggestions")) {
     $("#tripResponsibleSuggestions").innerHTML = buyers
-      .map((v) => `<option value="${v.nome}"></option>`)
+      .map((v) => `<option value="${escapeHtml(v.nome)}"></option>`)
       .join("");
   }
 }
@@ -519,13 +521,13 @@ function renderCadastros() {
       .map(
         (item) => `
         <tr>
-          <td>${item.nome}</td>
-          <td>${item.cargo}</td>
-          <td>${item.telefone}</td>
+          <td>${escapeHtml(item.nome)}</td>
+          <td>${escapeHtml(item.cargo)}</td>
+          <td>${escapeHtml(item.telefone)}</td>
           <td>${currency(item.salarioBase)}</td>
           <td class="text-right">
-            <button class="text-slate-700 font-semibold mr-3" onclick="openEntityModal('employee','${item.id}')">Editar</button>
-            <button class="text-red-600 font-semibold" onclick="removeEntity('employee','${item.id}')">Inativar</button>
+            <button class="text-slate-700 font-semibold mr-3" data-action="open-entity" data-entity-type="employee" data-id="${escapeHtml(item.id)}">Editar</button>
+            <button class="text-red-600 font-semibold" data-action="remove-entity" data-entity-type="employee" data-id="${escapeHtml(item.id)}">Inativar</button>
           </td>
         </tr>`,
       )
@@ -537,13 +539,13 @@ function renderCadastros() {
       .map(
         (item) => `
         <tr>
-          <td>${item.modelo}</td>
+          <td>${escapeHtml(item.modelo)}</td>
           <td>${item.ano}</td>
-          <td>${item.cor}</td>
+          <td>${escapeHtml(item.cor)}</td>
           <td>${item.kmAtual || 0}</td>
           <td class="text-right">
-            <button class="text-slate-700 font-semibold mr-3" onclick="openEntityModal('vehicle','${item.id}')">Editar</button>
-            <button class="text-red-600 font-semibold" onclick="removeEntity('vehicle','${item.id}')">Inativar</button>
+            <button class="text-slate-700 font-semibold mr-3" data-action="open-entity" data-entity-type="vehicle" data-id="${escapeHtml(item.id)}">Editar</button>
+            <button class="text-red-600 font-semibold" data-action="remove-entity" data-entity-type="vehicle" data-id="${escapeHtml(item.id)}">Inativar</button>
           </td>
         </tr>`,
       )
@@ -555,11 +557,11 @@ function renderCadastros() {
       .map(
         (item) => `
         <tr>
-          <td>${item.nome}</td>
-          <td>${item.status}</td>
+          <td>${escapeHtml(item.nome)}</td>
+          <td>${escapeHtml(item.status)}</td>
           <td class="text-right">
-            <button class="text-slate-700 font-semibold mr-3" onclick="openEntityModal('buyer','${item.id}')">Editar</button>
-            <button class="text-red-600 font-semibold" onclick="removeEntity('buyer','${item.id}')">Inativar</button>
+            <button class="text-slate-700 font-semibold mr-3" data-action="open-entity" data-entity-type="buyer" data-id="${escapeHtml(item.id)}">Editar</button>
+            <button class="text-red-600 font-semibold" data-action="remove-entity" data-entity-type="buyer" data-id="${escapeHtml(item.id)}">Inativar</button>
           </td>
         </tr>`,
       )
@@ -571,12 +573,12 @@ function renderCadastros() {
       .map(
         (item) => `
         <tr>
-          <td>${item.nome}</td>
+          <td>${escapeHtml(item.nome)}</td>
           <td>Dia ${item.fechamento}</td>
           <td>Dia ${item.vencimento}</td>
           <td class="text-right">
-            <button class="text-slate-700 font-semibold mr-3" onclick="openEntityModal('card','${item.id}')">Editar</button>
-            <button class="text-red-600 font-semibold" onclick="removeEntity('card','${item.id}')">Excluir</button>
+            <button class="text-slate-700 font-semibold mr-3" data-action="open-entity" data-entity-type="card" data-id="${escapeHtml(item.id)}">Editar</button>
+            <button class="text-red-600 font-semibold" data-action="remove-entity" data-entity-type="card" data-id="${escapeHtml(item.id)}">Excluir</button>
           </td>
         </tr>`,
       )
@@ -595,7 +597,7 @@ function renderFuelHistory() {
         <div class="rounded-2xl border border-slate-200 bg-white/70 p-4">
           <div class="flex items-start justify-between gap-3">
             <div>
-              <div class="font-semibold">${getVehicleName(item.veiculoId)}</div>
+              <div class="font-semibold">${escapeHtml(getVehicleName(item.veiculoId))}</div>
               <div class="text-sm muted mt-1">${formatDate(item.data)} • ${item.litros} L • ${currency(item.valorTotal)}</div>
               <div class="text-sm muted mt-1">${paymentLabel(item.paymentMethod)}${item.paymentMethod === "cartao_credito" ? ` • ${item.installments}x` : ""}</div>
             </div>
@@ -685,8 +687,8 @@ function reportActions(item) {
   const canUndo = item.status === "Pago";
   return `
         <div class="flex justify-end gap-2 no-print">
-          ${canUndo ? `<button class="rounded-xl px-3 py-2 btn-secondary text-sm font-semibold" onclick="undoReportPayment('${item.sourceRowType}','${item.sourceId}')">Estornar baixa</button>` : ""}
-          <button class="rounded-xl px-3 py-2 btn-secondary text-sm font-semibold text-red-600" onclick="deleteReportEntry('${item.sourceRowType}','${item.sourceId}')">Excluir</button>
+          ${canUndo ? `<button class="rounded-xl px-3 py-2 btn-secondary text-sm font-semibold" data-action="undo-report-payment" data-row-type="${escapeHtml(item.sourceRowType)}" data-id="${escapeHtml(item.sourceId)}">Estornar baixa</button>` : ""}
+          <button class="rounded-xl px-3 py-2 btn-secondary text-sm font-semibold text-red-600" data-action="delete-report-entry" data-row-type="${escapeHtml(item.sourceRowType)}" data-id="${escapeHtml(item.sourceId)}">Excluir</button>
         </div>`;
 }
 
@@ -698,12 +700,12 @@ function renderReport() {
         (item) => `
         <tr>
           <td>${formatDate(item.data)}</td>
-          <td>${item.type}</td>
-          <td>${item.category}</td>
-          <td>${item.description}</td>
-          <td>${item.vehicle}</td>
-          <td>${item.employee}</td>
-          <td>${item.payment}</td>
+          <td>${escapeHtml(item.type)}</td>
+          <td>${escapeHtml(item.category)}</td>
+          <td>${escapeHtml(item.description)}</td>
+          <td>${escapeHtml(item.vehicle)}</td>
+          <td>${escapeHtml(item.employee)}</td>
+          <td>${escapeHtml(item.payment)}</td>
           <td>${rowStatusBadge(item.status)}</td>
           <td class="text-right">${currency(item.value)}</td>
           <td class="text-right no-print">${reportActions(item)}</td>
@@ -728,7 +730,7 @@ function renderExpenseTable() {
         (item) => `
         <tr>
           <td>${formatDate(item.data)}</td>
-          <td>${categoryLabel(item.categoria)}</td>
+          <td>${escapeHtml(categoryLabel(item.categoria))}</td>
           <td>
             <div class="font-medium">${escapeHtml(item.descricao || "-")}</div>
             <div class="muted text-xs mt-1">${escapeHtml(item.descricaoGasto || getVehicleName(item.veiculoId) || getEmployeeName(item.funcionarioId) || "-")}</div>
@@ -737,7 +739,7 @@ function renderExpenseTable() {
           <td>${rowStatusBadge(item.status)}</td>
           <td class="text-right">${currency(item.valor)}</td>
           <td class="text-right">
-            <button class="rounded-xl px-3 py-2 btn-secondary text-sm font-semibold" onclick="deleteExpense('${item.id}')">Excluir</button>
+            <button class="rounded-xl px-3 py-2 btn-secondary text-sm font-semibold" data-action="delete-expense" data-id="${escapeHtml(item.id)}">Excluir</button>
           </td>
         </tr>`,
       )
@@ -802,12 +804,12 @@ function renderPending() {
         (item) => `
         <tr>
           <td>${formatDate(item.vencimento)}</td>
-          <td>${item.kind}</td>
-          <td>${item.descricao}</td>
-          <td>${item.origem}</td>
+          <td>${escapeHtml(item.kind)}</td>
+          <td>${escapeHtml(item.descricao)}</td>
+          <td>${escapeHtml(item.origem)}</td>
           <td>${currency(item.valor)}</td>
           <td class="text-right">
-            <button class="rounded-xl px-3 py-2 btn-primary text-sm font-semibold" onclick="markPendingAsPaid('${item.rowType}','${item.id}')">Dar baixa</button>
+            <button class="rounded-xl px-3 py-2 btn-primary text-sm font-semibold" data-action="mark-pending-paid" data-row-type="${escapeHtml(item.rowType)}" data-id="${escapeHtml(item.id)}">Dar baixa</button>
           </td>
         </tr>`,
       )
@@ -1170,8 +1172,8 @@ function renderTripsTable() {
           <td>${tripStatusBadge(trip.status)}</td>
           <td>${currency(trip.finalValue)}</td>
           <td class="text-right whitespace-nowrap">
-            <button class="text-slate-700 font-semibold mr-3" onclick="editTrip('${trip.id}')">Editar</button>
-            <button class="text-red-600 font-semibold" onclick="previewTrip('${trip.id}')">Abrir</button>
+            <button class="text-slate-700 font-semibold mr-3" data-action="edit-trip" data-id="${escapeHtml(trip.id)}">Editar</button>
+            <button class="text-red-600 font-semibold" data-action="preview-trip" data-id="${escapeHtml(trip.id)}">Abrir</button>
           </td>
         </tr>`,
       )
@@ -1197,8 +1199,8 @@ function renderTripDaySummary() {
           <div class="muted text-sm">Saída: ${formatDate(trip.departureDate)} • Retorno: ${formatDate(trip.returnDate)}</div>
           <div class="muted text-sm">Veículos: ${escapeHtml(getTripVehicleNames(trip).join(" • ") || tripVehicleLabel(trip.vehiclesQty))}</div>
           <div class="flex flex-wrap gap-2 mt-3">
-            <button class="rounded-xl px-3 py-2 btn-secondary text-sm font-semibold" onclick="editTrip('${trip.id}')">Editar</button>
-            <button class="rounded-xl px-3 py-2 btn-primary text-sm font-semibold" onclick="previewTrip('${trip.id}')">Abrir proposta</button>
+            <button class="rounded-xl px-3 py-2 btn-secondary text-sm font-semibold" data-action="edit-trip" data-id="${escapeHtml(trip.id)}">Editar</button>
+            <button class="rounded-xl px-3 py-2 btn-primary text-sm font-semibold" data-action="preview-trip" data-id="${escapeHtml(trip.id)}">Abrir proposta</button>
           </div>
         </div>`,
       )
@@ -1597,14 +1599,14 @@ window.openEntityModal = function (type, id = "") {
       form: (item) => `
             <div class="flex items-center justify-between mb-6">
               <h3 class="text-2xl font-semibold">${id ? "Editar funcionário" : "Novo funcionário"}</h3>
-              <button onclick="closeModal()" class="rounded-2xl px-4 py-3 btn-secondary font-semibold">Fechar</button>
+              <button type="button" data-action="close-modal" class="rounded-2xl px-4 py-3 btn-secondary font-semibold">Fechar</button>
             </div>
             <form id="entityForm" class="grid md:grid-cols-2 gap-4">
               <input type="hidden" name="entityType" value="employee">
-              <input type="hidden" name="entityId" value="${id}">
-              <div><label class="block text-sm font-medium mb-2">Nome</label><input class="field" name="nome" value="${item.nome || ""}" required></div>
-              <div><label class="block text-sm font-medium mb-2">Cargo</label><input class="field" name="cargo" value="${item.cargo || ""}" required></div>
-              <div><label class="block text-sm font-medium mb-2">Telefone</label><input class="field" name="telefone" value="${item.telefone || ""}" required></div>
+              <input type="hidden" name="entityId" value="${escapeHtml(id)}">
+              <div><label class="block text-sm font-medium mb-2">Nome</label><input class="field" name="nome" value="${escapeHtml(item.nome || "")}" required></div>
+              <div><label class="block text-sm font-medium mb-2">Cargo</label><input class="field" name="cargo" value="${escapeHtml(item.cargo || "")}" required></div>
+              <div><label class="block text-sm font-medium mb-2">Telefone</label><input class="field" name="telefone" value="${escapeHtml(item.telefone || "")}" required></div>
               <div><label class="block text-sm font-medium mb-2">Salário base</label><input type="number" min="0" step="0.01" class="field" name="salarioBase" value="${item.salarioBase || ""}" required></div>
               <div class="md:col-span-2 flex justify-end"><button class="rounded-2xl px-5 py-4 btn-primary font-semibold">Salvar</button></div>
             </form>`,
@@ -1614,15 +1616,15 @@ window.openEntityModal = function (type, id = "") {
       form: (item) => `
             <div class="flex items-center justify-between mb-6">
               <h3 class="text-2xl font-semibold">${id ? "Editar veículo" : "Novo veículo"}</h3>
-              <button onclick="closeModal()" class="rounded-2xl px-4 py-3 btn-secondary font-semibold">Fechar</button>
+              <button type="button" data-action="close-modal" class="rounded-2xl px-4 py-3 btn-secondary font-semibold">Fechar</button>
             </div>
             <form id="entityForm" class="grid md:grid-cols-2 gap-4">
               <input type="hidden" name="entityType" value="vehicle">
-              <input type="hidden" name="entityId" value="${id}">
-              <div><label class="block text-sm font-medium mb-2">Modelo</label><input class="field" name="modelo" value="${item.modelo || ""}" required></div>
+              <input type="hidden" name="entityId" value="${escapeHtml(id)}">
+              <div><label class="block text-sm font-medium mb-2">Modelo</label><input class="field" name="modelo" value="${escapeHtml(item.modelo || "")}" required></div>
               <div><label class="block text-sm font-medium mb-2">Ano</label><input type="number" class="field" name="ano" value="${item.ano || ""}" required></div>
-              <div><label class="block text-sm font-medium mb-2">Cor</label><input class="field" name="cor" value="${item.cor || ""}" required></div>
-              <div><label class="block text-sm font-medium mb-2">Placa</label><input class="field" name="placa" value="${item.placa || ""}"></div>
+              <div><label class="block text-sm font-medium mb-2">Cor</label><input class="field" name="cor" value="${escapeHtml(item.cor || "")}" required></div>
+              <div><label class="block text-sm font-medium mb-2">Placa</label><input class="field" name="placa" value="${escapeHtml(item.placa || "")}"></div>
               <div><label class="block text-sm font-medium mb-2">KM atual</label><input type="number" class="field" name="kmAtual" value="${item.kmAtual || 0}" required></div>
               <div><label class="block text-sm font-medium mb-2">Quantidade de lugares</label><input type="number" min="1" class="field" name="lugares" value="${item.lugares || ""}" required></div>
               <div><label class="block text-sm font-medium mb-2">Status</label><select class="field" name="status"><option value="ativo" ${item.status !== "inativo" ? "selected" : ""}>Ativo</option><option value="inativo" ${item.status === "inativo" ? "selected" : ""}>Inativo</option></select></div>
@@ -1634,12 +1636,12 @@ window.openEntityModal = function (type, id = "") {
       form: (item) => `
             <div class="flex items-center justify-between mb-6">
               <h3 class="text-2xl font-semibold">${id ? "Editar gestor" : "Novo gestor"}</h3>
-              <button onclick="closeModal()" class="rounded-2xl px-4 py-3 btn-secondary font-semibold">Fechar</button>
+              <button type="button" data-action="close-modal" class="rounded-2xl px-4 py-3 btn-secondary font-semibold">Fechar</button>
             </div>
             <form id="entityForm" class="grid md:grid-cols-2 gap-4">
               <input type="hidden" name="entityType" value="buyer">
-              <input type="hidden" name="entityId" value="${id}">
-              <div><label class="block text-sm font-medium mb-2">Nome</label><input class="field" name="nome" value="${item.nome || ""}" required></div>
+              <input type="hidden" name="entityId" value="${escapeHtml(id)}">
+              <div><label class="block text-sm font-medium mb-2">Nome</label><input class="field" name="nome" value="${escapeHtml(item.nome || "")}" required></div>
               <div><label class="block text-sm font-medium mb-2">Status</label><select class="field" name="status"><option value="ativo" ${item.status !== "inativo" ? "selected" : ""}>Ativo</option><option value="inativo" ${item.status === "inativo" ? "selected" : ""}>Inativo</option></select></div>
               <div class="md:col-span-2 flex justify-end"><button class="rounded-2xl px-5 py-4 btn-primary font-semibold">Salvar</button></div>
             </form>`,
@@ -1649,12 +1651,12 @@ window.openEntityModal = function (type, id = "") {
       form: (item) => `
             <div class="flex items-center justify-between mb-6">
               <h3 class="text-2xl font-semibold">${id ? "Editar cartão" : "Novo cartão"}</h3>
-              <button onclick="closeModal()" class="rounded-2xl px-4 py-3 btn-secondary font-semibold">Fechar</button>
+              <button type="button" data-action="close-modal" class="rounded-2xl px-4 py-3 btn-secondary font-semibold">Fechar</button>
             </div>
             <form id="entityForm" class="grid md:grid-cols-3 gap-4">
               <input type="hidden" name="entityType" value="card">
-              <input type="hidden" name="entityId" value="${id}">
-              <div><label class="block text-sm font-medium mb-2">Nome do cartão</label><input class="field" name="nome" value="${item.nome || ""}" required></div>
+              <input type="hidden" name="entityId" value="${escapeHtml(id)}">
+              <div><label class="block text-sm font-medium mb-2">Nome do cartão</label><input class="field" name="nome" value="${escapeHtml(item.nome || "")}" required></div>
               <div><label class="block text-sm font-medium mb-2">Dia de fechamento</label><input type="number" min="1" max="31" class="field" name="fechamento" value="${item.fechamento || ""}" required></div>
               <div><label class="block text-sm font-medium mb-2">Dia de vencimento</label><input type="number" min="1" max="31" class="field" name="vencimento" value="${item.vencimento || ""}" required></div>
               <div class="md:col-span-3 flex justify-end"><button class="rounded-2xl px-5 py-4 btn-primary font-semibold">Salvar</button></div>
@@ -1783,6 +1785,43 @@ function switchScreens() {
     loginScreen.classList.remove("hidden-section");
   }
 }
+
+async function validateCloudSession() {
+  if (!databaseService.isCloudEnabled()) {
+    setSession(false);
+    return false;
+  }
+
+  try {
+    const session = await authService.getSession();
+    const isValid = Boolean(session?.user);
+    setSession(isValid);
+    return isValid;
+  } catch (error) {
+    console.warn("Sessão do Supabase inválida ou expirada:", error);
+    setSession(false);
+    return false;
+  }
+}
+
+function bindDynamicActions() {
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-action]");
+    if (!button) return;
+
+    const { action, entityType, rowType, id } = button.dataset;
+    if (action === "close-modal") closeModal();
+    if (action === "open-entity") window.openEntityModal(entityType, id);
+    if (action === "remove-entity") window.removeEntity(entityType, id);
+    if (action === "delete-expense") window.deleteExpense(id);
+    if (action === "delete-report-entry") window.deleteReportEntry(rowType, id);
+    if (action === "undo-report-payment") window.undoReportPayment(rowType, id);
+    if (action === "mark-pending-paid") window.markPendingAsPaid(rowType, id);
+    if (action === "edit-trip") window.editTrip(id);
+    if (action === "preview-trip") window.previewTrip(id);
+  });
+}
+
 function bindLogin() {
   $("#loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -1809,8 +1848,12 @@ function bindLogin() {
       await authService.signOut();
     } catch (error) {
       console.error("Erro ao sair:", error);
+    } finally {
+      databaseService.clearLocal();
+      state.data = seedData();
+      setSession(false);
+      switchScreens();
     }
-    switchScreens();
   });
 }
 
@@ -2227,6 +2270,11 @@ function initDefaults() {
 async function init() {
   applyLogo();
   load();
+  const hasValidCloudSession = await validateCloudSession();
+  if (!hasValidCloudSession) {
+    databaseService.clearLocal();
+    state.data = seedData();
+  }
   switchScreens();
   bindTabs();
   bindLogin();
@@ -2235,11 +2283,12 @@ async function init() {
   bindTrips();
   bindReports();
   bindModalTriggers();
+  bindDynamicActions();
   initDefaults();
   renderAll();
   toggleExpenseFields();
   toggleFuelFields();
-  if (databaseService.isCloudEnabled() && hasSession()) {
+  if (hasValidCloudSession) {
     await loadCloudDataIfAvailable();
   }
 }
