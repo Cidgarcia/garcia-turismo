@@ -1,82 +1,43 @@
-/* Ajustes específicos do dashboard */
-.kpi-grid {
-  align-items: stretch;
-}
+/* Ajustes de componentes e impressão, mantidos separados do design base. */
+.kpi-grid { align-items: stretch; }
+.kpi-stack, .kpi-centered { min-height: 100%; }
+.kpi-centered { display: flex; flex-direction: column; justify-content: center; }
 
-.kpi-stack {
-  min-height: 100%;
-}
+.report-print-body { background: var(--page-bg); }
+.report-print-page { width: 100%; max-width: 1280px; margin: 0 auto; padding: 24px; }
+.report-document { overflow: hidden; }
+.report-document__header { display: flex; align-items: center; justify-content: space-between; gap: 1.25rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--line); }
+.report-document__brand { display: flex; align-items: center; min-width: 0; gap: 1rem; }
+.report-document__logo { width: 72px; height: 72px; flex: 0 0 auto; object-fit: contain; border: 1px solid var(--line); border-radius: var(--radius-md); padding: .35rem; background: #fff; }
+.report-document__eyebrow { margin: 0 0 .2rem; color: var(--brand-red-dark); font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.report-document__title { margin: 0; font-size: 1.55rem; line-height: 1.2; }
+.report-document__period { margin: .35rem 0 0; color: var(--text-soft); }
+.report-document__tag { flex: 0 0 auto; }
+.report-document__metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 1.25rem 0; }
+.report-document__metric { padding: 1rem; border-left: 3px solid var(--brand-red); }
+.report-document__metric:nth-child(2) { border-color: var(--brand-navy); }
+.report-document__metric:nth-child(3) { border-color: var(--success); }
+.report-document__metric-label { color: var(--text-soft); font-size: .82rem; font-weight: 700; }
+.report-document__metric-value { margin-top: .3rem; font-size: 1.35rem; font-weight: 800; }
+.report-document__empty { padding: 2rem !important; color: var(--text-soft); text-align: center; }
+.report-export-shell { position: fixed; top: 0; left: -100000px; width: 1180px; background: #fff; padding: 16px; }
+.report-export-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .75rem; color: var(--text-soft); font-size: 10px; }
+.report-export-header img { width: auto; height: 48px; object-fit: contain; }
+.report-export-header__meta { text-align: right; line-height: 1.4; }
 
-.kpi-centered {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-.report-print-body {
-  background: #f1f5f9;
-}
-
-.report-print-page {
-  width: 100%;
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 24px;
-}
-
-.report-print-page #reportArea {
-  width: 100%;
-  overflow: visible;
-}
-
-.report-print-page .table-wrap {
-  overflow: visible;
-}
-
-.report-print-page table {
-  width: 100%;
-  table-layout: auto;
-  font-size: 11px;
-}
-
-.report-print-page th,
-.report-print-page td {
-  white-space: normal;
-  vertical-align: top;
+@media (max-width: 767px) {
+  .report-print-page { padding: 12px; }
+  .report-document__header { align-items: flex-start; }
+  .report-document__tag { display: none; }
+  .report-document__metrics { grid-template-columns: 1fr; gap: .65rem; }
 }
 
 @media print {
-  @page {
-    size: A4 landscape;
-    margin: 8mm;
-  }
-
-  body {
-    background: white !important;
-  }
-
-  .report-print-page {
-    max-width: none;
-    width: 100%;
-    padding: 0;
-  }
-
-  .card {
-    box-shadow: none !important;
-    border-radius: 24px !important;
-  }
-
-  .table-wrap {
-    overflow: visible !important;
-  }
-
-  table {
-    width: 100% !important;
-    font-size: 10px !important;
-  }
-
-  th,
-  td {
-    padding: 8px 6px !important;
-  }
+  @page { size: A4 landscape; margin: 8mm; }
+  .report-print-page { max-width: none; width: 100%; padding: 0; }
+  .report-document { border: 0; border-radius: 0; }
+  .report-document__metrics { margin: .8rem 0; }
+  .report-document__metric { padding: .7rem; }
+  .report-document table { font-size: 10px; }
+  .report-document th, .report-document td { padding: 6px; }
 }

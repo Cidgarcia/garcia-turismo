@@ -5,7 +5,7 @@ export const sessionService = {
     if (value) {
       localStorage.setItem(APP_CONFIG.sessionKey, "1");
     } else {
-      localStorage.removeItem(APP_CONFIG.sessionKey);
+      this.clear();
     }
   },
 
@@ -15,5 +15,6 @@ export const sessionService = {
 
   clear() {
     localStorage.removeItem(APP_CONFIG.sessionKey);
+    localStorage.removeItem("garcia-turismo-supabase-auth");
   },
 };

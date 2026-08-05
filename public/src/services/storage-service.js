@@ -68,5 +68,9 @@ export const storageService = {
     const now = new Date().toISOString();
     localStorage.setItem(APP_CONFIG.autoBackupKey, now);
     return now;
+  },
+  clear() {
+    localStorage.removeItem(APP_CONFIG.storageKey);
+    localStorage.removeItem(APP_CONFIG.autoBackupKey);
   }
 };

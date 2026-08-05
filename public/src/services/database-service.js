@@ -14,6 +14,10 @@ export const databaseService = {
     return storageService.save(data);
   },
 
+  clearLocal() {
+    storageService.clear();
+  },
+
   persist(data) {
     const normalized = storageService.save(data);
     storageService.maybeAutoBackup(normalized);
