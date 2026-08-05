@@ -79,7 +79,7 @@ function renderReport(data, period, vehicle = null) {
         </div>
       </div>
       <div class="report-document__table-wrap">
-        <table class="report-document__table">
+        <table class="report-document__table report-table">
           <colgroup>
             <col class="report-document__col-date" />
             <col class="report-document__col-type" />

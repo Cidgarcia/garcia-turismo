@@ -253,9 +253,10 @@ async function generatePdf(browser, { data, period, vehicle = null, filename }) 
     const pdf = await page.pdf({
       format: "A4",
       landscape: true,
+      scale: 1,
       printBackground: true,
       preferCSSPageSize: true,
-      margin: { top: "8mm", right: "8mm", bottom: "8mm", left: "8mm" },
+      margin: { top: "8mm", right: "8mm", bottom: "10mm", left: "10mm" },
     });
 
     return {
