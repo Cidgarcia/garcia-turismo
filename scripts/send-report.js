@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import fetch from "node-fetch";
 
@@ -9,15 +10,7 @@ const TIME_ZONE = process.env.REPORT_TIME_ZONE || "America/Bahia";
 const MAX_MESSAGE_BYTES = 35 * 1024 * 1024;
 const MAX_RETRIES = 3;
 
-const CONFIG = {
-  resendApiKey: requireEnv("RESEND_API_KEY"),
-  supabaseUrl: requireEnv("SUPABASE_URL").replace(/\/$/, ""),
-  supabaseServiceRoleKey: requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
-  from: requireEnv("REPORT_FROM"),
-  to: parseRecipients(requireEnv("REPORT_TO")),
-  replyTo: parseRecipients(process.env.REPORT_REPLY_TO || ""),
-  subjectPrefix: process.env.REPORT_SUBJECT_PREFIX || "Relatórios Garcia Turismo",
-};
+let config;
 
 function requireEnv(name) {
   const value = String(process.env[name] || "").trim();
@@ -32,11 +25,27 @@ function parseRecipients(value) {
     .filter(Boolean);
 }
 
+function getConfig() {
+  if (!config) {
+    config = {
+      resendApiKey: requireEnv("RESEND_API_KEY"),
+      supabaseUrl: requireEnv("SUPABASE_URL").replace(/\/$/, ""),
+      supabaseServiceRoleKey: requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
+      from: requireEnv("REPORT_FROM"),
+      to: parseRecipients(requireEnv("REPORT_TO")),
+      replyTo: parseRecipients(process.env.REPORT_REPLY_TO || ""),
+      subjectPrefix: process.env.REPORT_SUBJECT_PREFIX || "Relatórios Garcia Turismo",
+    };
+  }
+  return config;
+}
+
 function validateConfiguration() {
-  if (!CONFIG.to.length) throw new Error("REPORT_TO não contém destinatários válidos.");
+  const currentConfig = getConfig();
+  if (!currentConfig.to.length) throw new Error("REPORT_TO não contém destinatários válidos.");
 
   if (
-    CONFIG.from.toLowerCase().includes("@resend.dev") &&
+    currentConfig.from.toLowerCase().includes("@resend.dev") &&
     process.env.ALLOW_RESEND_TEST_SENDER !== "true"
   ) {
     throw new Error(
@@ -92,14 +101,15 @@ function resolveReportPeriod() {
 }
 
 async function fetchAppState() {
-  const url = new URL(`${CONFIG.supabaseUrl}/rest/v1/app_states`);
+  const currentConfig = getConfig();
+  const url = new URL(`${currentConfig.supabaseUrl}/rest/v1/app_states`);
   url.searchParams.set("id", `eq.${STATE_ID}`);
   url.searchParams.set("select", "data");
 
   const response = await fetch(url, {
     headers: {
-      apikey: CONFIG.supabaseServiceRoleKey,
-      Authorization: `Bearer ${CONFIG.supabaseServiceRoleKey}`,
+      apikey: currentConfig.supabaseServiceRoleKey,
+      Authorization: `Bearer ${currentConfig.supabaseServiceRoleKey}`,
       Accept: "application/json",
       "User-Agent": "garcia-turismo-reports/1.0",
     },
@@ -128,23 +138,81 @@ function slugify(value) {
     .slice(0, 70) || "veiculo";
 }
 
-async function generatePdf(browser, { data, period, vehicleId = "", title, filename }) {
+function vehicleLabel(vehicle = {}) {
+  return [vehicle.modelo, vehicle.ano, vehicle.cor].filter(Boolean).join(" ").trim() || "Veículo";
+}
+
+function fileToken(value) {
+  return createHash("sha256").update(String(value)).digest("hex").slice(0, 10);
+}
+
+export function buildVehicleReports(data, period) {
+  const seenVehicleIds = new Set();
+  const seenFilenames = new Set([`relatorio-geral-${period.key}.pdf`]);
+  const vehicles = (data.vehicles || []).filter((vehicle) => vehicle.status !== "inativo");
+
+  return vehicles.map((vehicle) => {
+    const id = String(vehicle?.id || "").trim();
+    const name = vehicleLabel(vehicle);
+
+    if (!id) {
+      throw new Error(`Veículo ativo sem id: ${name}. Corrija o cadastro antes de enviar relatórios.`);
+    }
+    if (seenVehicleIds.has(id)) {
+      throw new Error(`Veículo ativo duplicado no estado: id=${id}. O envio foi interrompido.`);
+    }
+    seenVehicleIds.add(id);
+
+    const filename = `relatorio-${slugify(name)}-${fileToken(id)}-${period.key}.pdf`;
+    if (seenFilenames.has(filename)) {
+      throw new Error(`Nome de arquivo duplicado para o veículo ${id}: ${filename}. O envio foi interrompido.`);
+    }
+    seenFilenames.add(filename);
+
+    return { id, name, filename };
+  });
+}
+
+export function validateAttachments(attachments) {
+  const filenames = new Set();
+  const vehicleIds = new Set();
+
+  for (const attachment of attachments) {
+    if (!attachment.filename || filenames.has(attachment.filename)) {
+      throw new Error(`Arquivo de relatório duplicado: ${attachment.filename || "sem nome"}. O envio foi interrompido.`);
+    }
+    filenames.add(attachment.filename);
+
+    if (attachment.vehicleId) {
+      if (vehicleIds.has(attachment.vehicleId)) {
+        throw new Error(`Veículo duplicado nos anexos: id=${attachment.vehicleId}. O envio foi interrompido.`);
+      }
+      vehicleIds.add(attachment.vehicleId);
+    }
+  }
+}
+
+async function generatePdf(browser, { data, period, vehicle = null, filename }) {
   const page = await browser.newPage();
 
   try {
     await page.addInitScript(
-      ({ appData, reportPeriod }) => {
+      ({ appData, reportPeriod, reportVehicle }) => {
         window.__GARCIA_REPORT_PAYLOAD__ = {
           data: appData,
           period: reportPeriod,
+          vehicle: reportVehicle,
         };
       },
-      { appData: data, reportPeriod: period },
+      {
+        appData: data,
+        reportPeriod: period,
+        reportVehicle: vehicle ? { id: vehicle.id, name: vehicle.name } : null,
+      },
     );
 
     const url = new URL("/report.html", SITE_BASE_URL);
-    if (vehicleId) url.searchParams.set("vehicleId", vehicleId);
-    if (title) url.searchParams.set("title", title);
+    if (vehicle?.id) url.searchParams.set("vehicleId", vehicle.id);
 
     await page.goto(url.toString(), { waitUntil: "domcontentloaded", timeout: 30_000 });
     await page.waitForFunction(
@@ -167,7 +235,12 @@ async function generatePdf(browser, { data, period, vehicleId = "", title, filen
       margin: { top: "8mm", right: "8mm", bottom: "8mm", left: "8mm" },
     });
 
-    return { filename, content: pdf.toString("base64") };
+    return {
+      filename,
+      content: pdf.toString("base64"),
+      vehicleId: vehicle?.id || "",
+      vehicleName: vehicle?.name || "Relatório geral",
+    };
   } finally {
     await page.close();
   }
@@ -209,11 +282,12 @@ function idempotencyKey(periodKey, batchIndex, attachments) {
 }
 
 async function sendEmail({ attachments, period, batchIndex, batchCount }) {
+  const currentConfig = getConfig();
   const complement = batchCount > 1 ? ` (${batchIndex + 1}/${batchCount})` : "";
   const body = {
-    from: CONFIG.from,
-    to: CONFIG.to,
-    subject: `${CONFIG.subjectPrefix} — ${period.label}${complement}`,
+    from: currentConfig.from,
+    to: currentConfig.to,
+    subject: `${currentConfig.subjectPrefix} — ${period.label}${complement}`,
     html: [
       "<p>Olá,</p>",
       `<p>Seguem os relatórios financeiros referentes a <strong>${period.label}</strong>.</p>`,
@@ -222,13 +296,13 @@ async function sendEmail({ attachments, period, batchIndex, batchCount }) {
     attachments,
   };
 
-  if (CONFIG.replyTo.length) body.reply_to = CONFIG.replyTo;
+  if (currentConfig.replyTo.length) body.reply_to = currentConfig.replyTo;
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
     const response = await fetch(RESEND_API_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${CONFIG.resendApiKey}`,
+        Authorization: `Bearer ${currentConfig.resendApiKey}`,
         "Content-Type": "application/json",
         Accept: "application/json",
         "User-Agent": "garcia-turismo-reports/1.0",
@@ -267,36 +341,34 @@ async function main() {
   console.log(`Gerando relatórios de ${period.start} a ${period.end} (${TIME_ZONE}).`);
 
   const data = await fetchAppState();
-  const vehicles = (data.vehicles || []).filter((vehicle) => vehicle.status !== "inativo");
+  const vehicleReports = buildVehicleReports(data, period);
   const browser = await chromium.launch({ headless: true });
   const attachments = [];
 
   try {
-    attachments.push(
-      await generatePdf(browser, {
+    const generalAttachment = await generatePdf(browser, {
         data,
         period,
-        title: "Relatório Geral",
         filename: `relatorio-geral-${period.key}.pdf`,
-      }),
-    );
+      });
+    attachments.push(generalAttachment);
+    console.log(`[REPORT] veículo=geral/Relatório geral arquivo=${generalAttachment.filename}`);
 
-    for (const vehicle of vehicles) {
-      const vehicleName = [vehicle.modelo, vehicle.ano].filter(Boolean).join(" ");
-      attachments.push(
-        await generatePdf(browser, {
+    for (const vehicle of vehicleReports) {
+      const attachment = await generatePdf(browser, {
           data,
           period,
-          vehicleId: String(vehicle.id || ""),
-          title: `Relatório ${vehicleName || "Veículo"}`,
-          filename: `relatorio-${slugify(vehicleName)}-${period.key}.pdf`,
-        }),
-      );
+          vehicle,
+          filename: vehicle.filename,
+        });
+      attachments.push(attachment);
+      console.log(`[REPORT] veículo=${attachment.vehicleId}/${attachment.vehicleName} arquivo=${attachment.filename}`);
     }
   } finally {
     await browser.close();
   }
 
+  validateAttachments(attachments);
   const batches = splitAttachments(attachments);
   for (let index = 0; index < batches.length; index += 1) {
     const result = await sendEmail({
@@ -311,7 +383,9 @@ async function main() {
   console.log(`Relatórios de ${period.label} enviados com sucesso.`);
 }
 
-main().catch((error) => {
-  console.error("Erro ao enviar relatórios:", error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch((error) => {
+    console.error("Erro ao enviar relatórios:", error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
+}

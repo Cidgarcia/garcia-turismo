@@ -79,37 +79,38 @@ function buildRows(data, period, vehicleId = "") {
 function renderReport(data, period, options = {}) {
   const rows = buildRows(data, period, options.vehicleId || "");
   const total = rows.reduce((sum, item) => sum + item.valor, 0);
-  const safeTitle = escapeHtml(options.title || "Relatórios financeiros");
+  const safeTitle = escapeHtml(options.title || "Relatório financeiro mensal");
   const safeLabel = escapeHtml(period.label);
+  const safeVehicle = escapeHtml(options.vehicleName || "Consolidado da operação");
 
   root.innerHTML = `
-    <section id="reportArea" class="card p-6 space-y-5 bg-white">
-      <div class="flex flex-wrap items-center justify-between gap-4">
-        <div class="flex items-center gap-4">
-          <img src="./assets/GARCIA TURISMO.png" alt="Garcia Turismo"
-            class="w-20 h-20 object-contain rounded-2xl bg-white p-2 shadow-sm" />
+    <section id="reportArea" class="card p-6 report-document">
+      <header class="report-document__header">
+        <div class="report-document__brand">
+          <img src="./assets/GARCIA TURISMO.png" alt="Garcia Turismo" class="report-document__logo" />
           <div>
-            <h1 class="text-2xl font-semibold">${safeTitle}</h1>
-            <p class="muted mt-1">Garcia Turismo • ${safeLabel}</p>
+            <p class="report-document__eyebrow">Garcia Turismo · Financeiro</p>
+            <h1 class="report-document__title">${safeTitle}</h1>
+            <p class="report-document__period">${safeVehicle} · ${safeLabel}</p>
           </div>
         </div>
-        <div class="chip">PDF automático</div>
+        <div class="chip report-document__tag">Relatório mensal</div>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="metric-card p-4">
-          <div class="text-sm muted">Total filtrado</div>
-          <div class="text-2xl font-semibold mt-1">${money(total)}</div>
+      <div class="report-document__metrics">
+        <div class="metric-card report-document__metric">
+          <div class="report-document__metric-label">Total do período</div>
+          <div class="report-document__metric-value">${money(total)}</div>
         </div>
-        <div class="metric-card p-4">
-          <div class="text-sm muted">Qtd. lançamentos</div>
-          <div class="text-2xl font-semibold mt-1">${rows.length}</div>
+        <div class="metric-card report-document__metric">
+          <div class="report-document__metric-label">Lançamentos</div>
+          <div class="report-document__metric-value">${rows.length}</div>
         </div>
-        <div class="metric-card p-4">
-          <div class="text-sm muted">Gerado em</div>
-          <div class="text-base font-semibold mt-2">${escapeHtml(new Date().toLocaleString("pt-BR"))}</div>
+        <div class="metric-card report-document__metric">
+          <div class="report-document__metric-label">Emitido em</div>
+          <div class="report-document__metric-value text-base">${escapeHtml(new Date().toLocaleString("pt-BR"))}</div>
         </div>
       </div>
-      <div class="table-wrap text-[12px] md:text-[13px]">
+      <div class="table-wrap">
         <table>
           <thead>
             <tr>
@@ -132,7 +133,7 @@ function renderReport(data, period, options = {}) {
                   <td>${escapeHtml(item.status)}</td>
                   <td class="text-right">${escapeHtml(money(item.valor))}</td>
                 </tr>`).join("")
-              : '<tr><td colspan="9" class="text-center muted py-6">Nenhum lançamento encontrado.</td></tr>'}
+              : '<tr><td colspan="9" class="report-document__empty">Nenhum lançamento encontrado para este veículo no período.</td></tr>'}
           </tbody>
         </table>
       </div>
@@ -141,11 +142,17 @@ function renderReport(data, period, options = {}) {
 
 async function main() {
   const params = new URLSearchParams(window.location.search);
-  const { data, period } = loadPayload();
+  const { data, period, vehicle } = loadPayload();
+  const requestedVehicleId = params.get("vehicleId") || "";
+
+  if (requestedVehicleId && String(vehicle?.id || "") !== requestedVehicleId) {
+    throw new Error("O veículo solicitado não corresponde ao contexto seguro do relatório.");
+  }
 
   renderReport(data, period, {
-    vehicleId: params.get("vehicleId") || "",
-    title: params.get("title") || undefined,
+    vehicleId: requestedVehicleId,
+    title: vehicle ? `Relatório mensal — ${vehicle.name}` : "Relatório financeiro mensal",
+    vehicleName: vehicle?.name,
   });
 
   await document.fonts?.ready;
