@@ -1,3 +1,5 @@
+import { buildReportRows } from "./report-data.js";
+
 const root = document.getElementById("reportRoot");
 window.__GARCIA_REPORT_STATUS__ = { ready: false, error: null };
 
@@ -30,93 +32,68 @@ function loadPayload() {
   if (!payload?.data || !payload?.period) {
     throw new Error("Dados do relatório não foram fornecidos pela automação segura.");
   }
+  if (payload.vehicle !== null && (!payload.vehicle?.id || !payload.vehicle?.name)) {
+    throw new Error("O veículo do relatório individual está incompleto.");
+  }
   return payload;
 }
 
-function getVehicleName(data, id) {
-  const vehicle = (data.vehicles || []).find((item) => String(item.id) === String(id));
-  if (!vehicle) return "-";
-  return `${vehicle.modelo || ""} ${vehicle.ano || ""} - ${vehicle.cor || ""}`.trim();
-}
-
-function buildRows(data, period, vehicleId = "") {
-  const inPeriod = (item) => item.data >= period.start && item.data <= period.end;
-  const matchesVehicle = (item) => !vehicleId || String(item.veiculoId) === String(vehicleId);
-
-  const expenses = (data.expenses || [])
-    .filter(inPeriod)
-    .filter(matchesVehicle)
-    .map((item) => ({
-      data: item.data,
-      tipo: "Despesa",
-      categoria: item.categoria || "-",
-      descricao: item.descricao || item.descricaoGasto || "-",
-      veiculo: getVehicleName(data, item.veiculoId),
-      funcionario: "-",
-      pagamento: item.paymentMethod || "-",
-      status: item.status === "pago" ? "Pago" : "A pagar",
-      valor: Number(item.valor || 0),
-    }));
-
-  const fuelings = (data.fuelings || [])
-    .filter(inPeriod)
-    .filter(matchesVehicle)
-    .map((item) => ({
-      data: item.data,
-      tipo: "Combustível",
-      categoria: "Abastecimento",
-      descricao: `${Number(item.litros || 0)} L • ${Number(item.mediaKmLitro || 0)} km/l`,
-      veiculo: getVehicleName(data, item.veiculoId),
-      funcionario: "-",
-      pagamento: item.paymentMethod || "-",
-      status: item.status === "pago" ? "Pago" : "A pagar",
-      valor: Number(item.valorTotal || 0),
-    }));
-
-  return [...expenses, ...fuelings].sort((a, b) => String(a.data).localeCompare(String(b.data)));
-}
-
-function renderReport(data, period, options = {}) {
-  const rows = buildRows(data, period, options.vehicleId || "");
+function renderReport(data, period, vehicle = null) {
+  const rows = buildReportRows(data, period, vehicle);
   const total = rows.reduce((sum, item) => sum + item.valor, 0);
-  const safeTitle = escapeHtml(options.title || "Relatório financeiro mensal");
+  const safeTitle = escapeHtml(vehicle ? `Relatório mensal — ${vehicle.name}` : "Relatório financeiro mensal");
+  const safeVehicle = escapeHtml(vehicle?.name || "Consolidado da operação");
   const safeLabel = escapeHtml(period.label);
-  const safeVehicle = escapeHtml(options.vehicleName || "Consolidado da operação");
+  const emptyMessage = vehicle
+    ? "Nenhum lançamento encontrado para este veículo no período."
+    : "Nenhum lançamento encontrado no período.";
 
   root.innerHTML = `
-    <section id="reportArea" class="card p-6 report-document">
+    <section id="reportArea" class="report-document">
       <header class="report-document__header">
-        <div class="report-document__brand">
-          <img src="./assets/GARCIA TURISMO.png" alt="Garcia Turismo" class="report-document__logo" />
-          <div>
-            <p class="report-document__eyebrow">Garcia Turismo · Financeiro</p>
-            <h1 class="report-document__title">${safeTitle}</h1>
-            <p class="report-document__period">${safeVehicle} · ${safeLabel}</p>
-          </div>
+        <div class="report-document__logo-crop" aria-hidden="true">
+          <img src="./assets/GARCIA TURISMO.png" alt="" class="report-document__logo" />
         </div>
-        <div class="chip report-document__tag">Relatório mensal</div>
-      </div>
+        <div class="report-document__heading">
+          <p class="report-document__eyebrow">Garcia Turismo · Financeiro</p>
+          <h1 class="report-document__title">${safeTitle}</h1>
+          <p class="report-document__vehicle">${safeVehicle}</p>
+        </div>
+        <div class="report-document__period">
+          <span>Período</span>
+          <strong>${safeLabel}</strong>
+        </div>
+      </header>
       <div class="report-document__metrics">
-        <div class="metric-card report-document__metric">
+        <div class="report-document__metric">
           <div class="report-document__metric-label">Total do período</div>
           <div class="report-document__metric-value">${money(total)}</div>
         </div>
-        <div class="metric-card report-document__metric">
+        <div class="report-document__metric">
           <div class="report-document__metric-label">Lançamentos</div>
           <div class="report-document__metric-value">${rows.length}</div>
         </div>
-        <div class="metric-card report-document__metric">
+        <div class="report-document__metric">
           <div class="report-document__metric-label">Emitido em</div>
-          <div class="report-document__metric-value text-base">${escapeHtml(new Date().toLocaleString("pt-BR"))}</div>
+          <div class="report-document__metric-value report-document__metric-value--date">${escapeHtml(new Date().toLocaleString("pt-BR"))}</div>
         </div>
       </div>
-      <div class="table-wrap">
-        <table>
+      <div class="report-document__table-wrap">
+        <table class="report-document__table">
+          <colgroup>
+            <col class="report-document__col-date" />
+            <col class="report-document__col-type" />
+            <col class="report-document__col-category" />
+            <col class="report-document__col-description" />
+            <col class="report-document__col-vehicle" />
+            <col class="report-document__col-payment" />
+            <col class="report-document__col-status" />
+            <col class="report-document__col-value" />
+          </colgroup>
           <thead>
             <tr>
               <th>Data</th><th>Tipo</th><th>Categoria</th><th>Descrição</th>
-              <th>Veículo</th><th>Funcionário</th><th>Pagamento</th><th>Status</th>
-              <th class="text-right">Valor</th>
+              <th>Veículo</th><th>Pagamento</th><th>Status</th><th class="text-right">Valor</th>
             </tr>
           </thead>
           <tbody>
@@ -128,12 +105,11 @@ function renderReport(data, period, options = {}) {
                   <td>${escapeHtml(item.categoria)}</td>
                   <td>${escapeHtml(item.descricao)}</td>
                   <td>${escapeHtml(item.veiculo)}</td>
-                  <td>${escapeHtml(item.funcionario)}</td>
                   <td>${escapeHtml(item.pagamento)}</td>
                   <td>${escapeHtml(item.status)}</td>
                   <td class="text-right">${escapeHtml(money(item.valor))}</td>
                 </tr>`).join("")
-              : '<tr><td colspan="9" class="report-document__empty">Nenhum lançamento encontrado para este veículo no período.</td></tr>'}
+              : `<tr><td colspan="8" class="report-document__empty">${emptyMessage}</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -149,12 +125,7 @@ async function main() {
     throw new Error("O veículo solicitado não corresponde ao contexto seguro do relatório.");
   }
 
-  renderReport(data, period, {
-    vehicleId: requestedVehicleId,
-    title: vehicle ? `Relatório mensal — ${vehicle.name}` : "Relatório financeiro mensal",
-    vehicleName: vehicle?.name,
-  });
-
+  renderReport(data, period, vehicle || null);
   await document.fonts?.ready;
   window.__GARCIA_REPORT_STATUS__ = { ready: true, error: null };
 }
@@ -164,12 +135,10 @@ main().catch((error) => {
   window.__GARCIA_REPORT_STATUS__ = { ready: false, error: message };
   root.textContent = "";
   const wrapper = document.createElement("div");
-  wrapper.className = "card p-6";
+  wrapper.className = "report-document report-document--error";
   const title = document.createElement("h1");
-  title.className = "text-xl font-semibold text-red-600";
   title.textContent = "Erro ao carregar relatório";
   const details = document.createElement("pre");
-  details.className = "mt-4 whitespace-pre-wrap text-sm";
   details.textContent = message;
   wrapper.append(title, details);
   root.append(wrapper);

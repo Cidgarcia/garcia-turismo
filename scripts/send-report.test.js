@@ -21,6 +21,14 @@ test("cria um relatório único para cada veículo ativo", () => {
   assert.equal(new Set(reports.map((report) => report.id)).size, 3);
   assert.equal(new Set(reports.map((report) => report.filename)).size, 3);
   assert.ok(reports.every((report) => report.filename.includes("2026-08.pdf")));
+  assert.deepEqual(reports[0], {
+    id: "scan-01",
+    name: "Scania 2003 Preto",
+    modelo: "Scania",
+    ano: 2003,
+    cor: "Preto",
+    filename: reports[0].filename,
+  });
 });
 
 test("interrompe o envio quando houver id de veículo duplicado ou ausente", () => {

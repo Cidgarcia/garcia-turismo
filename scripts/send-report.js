@@ -142,6 +142,21 @@ function vehicleLabel(vehicle = {}) {
   return [vehicle.modelo, vehicle.ano, vehicle.cor].filter(Boolean).join(" ").trim() || "Veículo";
 }
 
+function reportVehicle(vehicle = {}) {
+  const id = String(vehicle?.id || "").trim();
+  const modelo = String(vehicle?.modelo || "").trim();
+  const ano = vehicle?.ano ?? "";
+  const cor = String(vehicle?.cor || "").trim();
+
+  return {
+    id,
+    name: vehicleLabel({ modelo, ano, cor }),
+    modelo,
+    ano,
+    cor,
+  };
+}
+
 function fileToken(value) {
   return createHash("sha256").update(String(value)).digest("hex").slice(0, 10);
 }
@@ -152,8 +167,8 @@ export function buildVehicleReports(data, period) {
   const vehicles = (data.vehicles || []).filter((vehicle) => vehicle.status !== "inativo");
 
   return vehicles.map((vehicle) => {
-    const id = String(vehicle?.id || "").trim();
-    const name = vehicleLabel(vehicle);
+    const safeVehicle = reportVehicle(vehicle);
+    const { id, name } = safeVehicle;
 
     if (!id) {
       throw new Error(`Veículo ativo sem id: ${name}. Corrija o cadastro antes de enviar relatórios.`);
@@ -169,7 +184,7 @@ export function buildVehicleReports(data, period) {
     }
     seenFilenames.add(filename);
 
-    return { id, name, filename };
+    return { ...safeVehicle, filename };
   });
 }
 
@@ -207,7 +222,15 @@ async function generatePdf(browser, { data, period, vehicle = null, filename }) 
       {
         appData: data,
         reportPeriod: period,
-        reportVehicle: vehicle ? { id: vehicle.id, name: vehicle.name } : null,
+        reportVehicle: vehicle
+          ? {
+              id: vehicle.id,
+              name: vehicle.name,
+              modelo: vehicle.modelo,
+              ano: vehicle.ano,
+              cor: vehicle.cor,
+            }
+          : null,
       },
     );
 
@@ -352,7 +375,7 @@ async function main() {
         filename: `relatorio-geral-${period.key}.pdf`,
       });
     attachments.push(generalAttachment);
-    console.log(`[REPORT] veículo=geral/Relatório geral arquivo=${generalAttachment.filename}`);
+    console.log(`[REPORT] tipo=geral arquivo=${generalAttachment.filename}`);
 
     for (const vehicle of vehicleReports) {
       const attachment = await generatePdf(browser, {
@@ -362,7 +385,7 @@ async function main() {
           filename: vehicle.filename,
         });
       attachments.push(attachment);
-      console.log(`[REPORT] veículo=${attachment.vehicleId}/${attachment.vehicleName} arquivo=${attachment.filename}`);
+      console.log(`[REPORT] tipo=veiculo id=${attachment.vehicleId} nome=${attachment.vehicleName} arquivo=${attachment.filename}`);
     }
   } finally {
     await browser.close();
