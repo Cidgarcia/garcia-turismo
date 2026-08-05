@@ -129,8 +129,12 @@ tbody tr:hover { background: #fbfcfd; }
   content: "";
   pointer-events: none;
   opacity: .16;
-  filter: blur(40px);
+  /* O gradiente já suaviza a borda; evitar blur ao vivo reduz repaint. */
+  filter: none;
+  contain: paint;
   will-change: transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 #tab-inicio::before {
   top: 17vh;
@@ -225,6 +229,14 @@ tbody tr:hover { background: #fbfcfd; }
 @media (max-width: 1023px) {
   #tab-inicio::before,
   #tab-inicio::after { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #tab-inicio::before,
+  #tab-inicio::after {
+    animation: none !important;
+    transform: translateZ(0);
+  }
 }
 
 @media print { .no-print { display: none !important; } body { background: #fff !important; } .card { box-shadow: none !important; } .table-wrap { overflow: visible !important; border: 0; } table { min-width: 0; } }
