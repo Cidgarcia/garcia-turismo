@@ -111,7 +111,24 @@ tbody tr:hover { background: #fbfcfd; }
 .status-cancelled { background: #fcebed; border-color: #f2c3c7; color: var(--danger); }
 
 .logo-login { max-width: 230px; width: 100%; height: auto; object-fit: contain; }
-.logo-header { height: 64px; width: auto; object-fit: contain; }
+/*
+ * O PNG original (1080x1350) possui margem branca vertical extensa.
+ * Este quadro exibe apenas a faixa central da marca sem editar o arquivo.
+ */
+.header-logo-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 272px;
+  height: 116px;
+  overflow: hidden;
+}
+.logo-header {
+  max-width: none;
+  width: auto;
+  height: 380px;
+  object-fit: contain;
+}
 .logo-report { height: 86px; width: auto; object-fit: contain; }
 
 /* Blobs fixos e discretos que reforçam a cor da marca na visão inicial. */
@@ -216,7 +233,9 @@ tbody tr:hover { background: #fbfcfd; }
 @media (min-width: 1280px) { .xl\:flex-row { flex-direction: row; }.xl\:items-center { align-items: center; }.xl\:justify-between { justify-content: space-between; }.xl\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }.xl\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }.xl\:grid-cols-\[1\.35fr_\.65fr\] { grid-template-columns: minmax(0, 1.35fr) minmax(0, .65fr); }.xl\:grid-cols-\[1\.18fr_\.82fr\] { grid-template-columns: minmax(0, 1.18fr) minmax(0, .82fr); }.xl\:grid-cols-\[1\.15fr_\.85fr\] { grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); }.xl\:col-span-3 { grid-column: span 3 / span 3; } }
 
 @media (max-width: 767px) {
-  .logo-login { max-width: 180px; }.logo-header { height: 52px; }.logo-report { height: 68px; }
+  .logo-login { max-width: 180px; }.logo-report { height: 68px; }
+  .header-logo-frame { width: 164px; height: 64px; }
+  .logo-header { height: 212px; }
   #dashboardScreen > header { position: sticky; top: 0; z-index: 40; padding: .75rem; background: rgba(243, 246, 248, .92); }
   #dashboardScreen > header > div { padding: .75rem; border-radius: var(--radius-md); }
   .dashboard-nav { flex-wrap: nowrap; width: 100%; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }

@@ -1,9 +1,11 @@
 export function renderNavigation() {
   return `
-      <header class="sticky top-0 z-30 px-4 md:px-6 py-4 no-print">
-        <div class="max-w-7xl mx-auto glass rounded-[30px] px-4 py-4 flex flex-col xl:flex-row gap-4 xl:items-center xl:justify-between">
+      <header class="sticky top-0 z-30 px-4 md:px-6 py-3 no-print">
+        <div class="max-w-7xl mx-auto glass rounded-[30px] px-5 py-2 flex flex-col xl:flex-row gap-4 xl:items-center xl:justify-between">
           <div class="flex items-center gap-4 min-w-0">
-            <img loading="lazy" id="headerLogo" alt="Garcia Turismo" class="logo-header shrink-0" />
+            <div class="header-logo-frame shrink-0" aria-label="Garcia Turismo">
+              <img loading="lazy" id="headerLogo" alt="Garcia Turismo" class="logo-header" />
+            </div>
             <div class="hidden md:block">
               <p class="text-sm muted">Sistema financeiro e frota</p>
               <p class="text-lg font-semibold">Painel administrativo</p>
