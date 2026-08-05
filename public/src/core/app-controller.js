@@ -150,12 +150,8 @@ function hasSession() {
 
 function showToast(message, type = "default") {
   const el = $("#toast");
-  const palette = {
-    default: "background:rgba(15,23,42,.94);color:#fff;",
-    success: "background:linear-gradient(135deg,#111113,#2d2f36);color:#fff;",
-    error: "background:linear-gradient(135deg,#b91c1c,#ef4444);color:#fff;",
-  };
-  el.innerHTML = `<div class="rounded-2xl px-4 py-3 shadow-2xl" style="${palette[type] || palette.default}">${message}</div>`;
+  const safeType = ["default", "success", "error"].includes(type) ? type : "default";
+  el.innerHTML = `<div class="toast__message toast--${safeType}">${escapeHtml(message)}</div>`;
   el.classList.remove("hidden");
   clearTimeout(el._timer);
   el._timer = setTimeout(() => el.classList.add("hidden"), 2800);
@@ -327,47 +323,27 @@ function getVehicleTotals() {
   return totals;
 }
 
-function getCashflowTotals() {
-  let paid = 0;
-  let pending = 0;
-  let pendingCount = 0;
-
-  state.data.expenses.forEach((item) => {
-    if (item.paymentMethod === "cartao_credito") return;
-    if (item.status === "pago") paid += Number(item.valor || 0);
-    if (item.status === "a_pagar") {
-      pending += Number(item.valor || 0);
-      pendingCount += 1;
-    }
-  });
-
-  state.data.fuelings.forEach((item) => {
-    if (item.paymentMethod === "cartao_credito") return;
-    if (item.status === "pago") paid += Number(item.valorTotal || 0);
-    if (item.status === "a_pagar") {
-      pending += Number(item.valorTotal || 0);
-      pendingCount += 1;
-    }
-  });
-
-  state.data.cardSchedules.forEach((item) => {
-    if (item.status === "pago") paid += Number(item.valor || 0);
-    if (item.status === "a_pagar") {
-      pending += Number(item.valor || 0);
-      pendingCount += 1;
-    }
-  });
-
-  return { paid, pending, pendingCount };
-}
-
 function renderKPIs() {
   const currentMonth = monthNow();
-  const monthExpenses =
-    state.data.expenses.filter((x) => (x.data || "").startsWith(currentMonth))
-      .length +
-    state.data.fuelings.filter((x) => (x.data || "").startsWith(currentMonth))
-      .length;
+  const directExpenses = state.data.expenses
+    .filter((item) => item.paymentMethod !== "cartao_credito")
+    .filter((item) => (item.data || "").startsWith(currentMonth))
+    .reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const fuelExpenses = state.data.fuelings
+    .filter((item) => item.paymentMethod !== "cartao_credito")
+    .filter((item) => (item.data || "").startsWith(currentMonth))
+    .reduce((sum, item) => sum + Number(item.valorTotal || 0), 0);
+  const cardExpenses = state.data.cardSchedules
+    .filter((item) => (item.vencimento || "").startsWith(currentMonth))
+    .reduce((sum, item) => sum + Number(item.valor || 0), 0);
+  const monthTrips = state.data.trips.filter(
+    (item) => (item.departureDate || "").startsWith(currentMonth) && item.status !== "Cancelada",
+  );
+  const expectedRevenue = monthTrips.reduce(
+    (sum, item) => sum + Number(item.finalValue || 0),
+    0,
+  );
+  const monthExpenses = directExpenses + fuelExpenses + cardExpenses;
   const activeVehicles = state.data.vehicles.filter(
     (v) => v.status !== "inativo",
   ).length;
@@ -377,12 +353,10 @@ function renderKPIs() {
   const lastFuel = [...state.data.fuelings].sort((a, b) =>
     (b.data || "").localeCompare(a.data || ""),
   )[0];
-  const flow = getCashflowTotals();
-
-  $("#kpiPago").textContent = currency(flow.paid);
-  $("#kpiAPagar").textContent = currency(flow.pending);
-  $("#kpiAbastecimentos").textContent = state.data.fuelings.length;
-  $("#kpiPendencias").textContent = flow.pendingCount;
+  $("#kpiReceitas").textContent = currency(expectedRevenue);
+  $("#kpiDespesas").textContent = currency(monthExpenses);
+  $("#kpiSaldo").textContent = currency(expectedRevenue - monthExpenses);
+  $("#kpiViagens").textContent = monthTrips.length;
   $("#resumoVeiculos").textContent = activeVehicles;
   $("#resumoFuncionarios").textContent = activeEmployees;
   $("#resumoUltimoAbastecimento").textContent = lastFuel
@@ -1160,7 +1134,7 @@ function buildTripProposalMarkup(trip) {
           <p>- Oferta válida por 30 dias a partir da data de emissão.</p>
           <p>- Valores incluem transporte (ida e volta) apenas.</p>
 
-          <p style="margin-top:14px;"><strong>Contato:</strong></p>
+          <p class="proposal-doc__contact"><strong>Contato:</strong></p>
           <p>WhatsApp: (74) 98816-4009</p>
           <p>E-mail: garciaturismoeviagens@gmail.com</p>
 
@@ -2178,27 +2152,21 @@ async function exportPdf() {
   renderReport();
 
   const source = $("#reportArea").cloneNode(true);
-  source.style.background = "#ffffff";
-  source.style.padding = "16px";
+  source.classList.add("report-document");
   source.querySelectorAll(".no-print").forEach((el) => el.remove());
 
   const header = document.createElement("div");
-  header.style.marginBottom = "8px";
-  header.style.display = "flex";
-  header.style.justifyContent = "space-between";
-  header.style.alignItems = "center";
+  header.className = "report-export-header";
   header.innerHTML = `
-        <div><img src="${LOGO_DATA}" alt="Garcia Turismo" style="height:48px;width:auto;"></div>
-        <div style="text-align:right;color:#475569;font-size:10px;line-height:1.4;">
+        <div><img src="${LOGO_DATA}" alt="Garcia Turismo"></div>
+        <div class="report-export-header__meta">
           <div>Relatório Garcia Turismo</div>
           <div>Emitido em ${new Date().toLocaleString("pt-BR")}</div>
         </div>`;
   source.prepend(header);
 
   const wrap = document.createElement("div");
-  wrap.style.position = "fixed";
-  wrap.style.left = "-99999px";
-  wrap.style.top = "0";
+  wrap.className = "report-export-shell";
   wrap.appendChild(source);
   document.body.appendChild(wrap);
 

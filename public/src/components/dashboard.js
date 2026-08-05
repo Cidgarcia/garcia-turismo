@@ -12,23 +12,23 @@ export function renderDashboardTab() {
 
           <div class="grid md:grid-cols-2 gap-4 mt-8">
             <div class="metric-card p-5">
-              <p class="text-sm muted">Fluxo pago</p>
-              <h3 id="kpiPago" class="text-3xl font-semibold mt-2 break-words">R$ 0,00</h3>
+              <p class="text-sm muted">Receita prevista</p>
+              <h3 id="kpiReceitas" class="text-3xl font-semibold mt-2 break-words">R$ 0,00</h3>
             </div>
 
             <div class="metric-card p-5">
-              <p class="text-sm muted">Fluxo pendente</p>
-              <h3 id="kpiAPagar" class="text-3xl font-semibold mt-2 break-words">R$ 0,00</h3>
+              <p class="text-sm muted">Despesas do mês</p>
+              <h3 id="kpiDespesas" class="text-3xl font-semibold mt-2 break-words">R$ 0,00</h3>
             </div>
 
             <div class="metric-card p-5">
-              <p class="text-sm muted">Abastecimentos</p>
-              <h3 id="kpiAbastecimentos" class="text-3xl font-semibold mt-2">0</h3>
+              <p class="text-sm muted">Saldo projetado</p>
+              <h3 id="kpiSaldo" class="text-3xl font-semibold mt-2 break-words">R$ 0,00</h3>
             </div>
 
             <div class="metric-card p-5">
-              <p class="text-sm muted">Pendências abertas</p>
-              <h3 id="kpiPendencias" class="text-3xl font-semibold mt-2">0</h3>
+              <p class="text-sm muted">Viagens no mês</p>
+              <h3 id="kpiViagens" class="text-3xl font-semibold mt-2">0</h3>
             </div>
           </div>
         </div>
