@@ -6,8 +6,8 @@
     "send-report": "node scripts/send-report.js",
     "backup:export": "node scripts/export-backup.js",
     "backup:restore": "node scripts/restore-backup.js",
-    "check": "node --check scripts/send-report.js && node --check scripts/export-backup.js && node --check scripts/restore-backup.js && node --check public/src/report/report.js && node --check public/src/services/supabase-service.js",
-    "test:reports": "node --test scripts/send-report.test.js"
+    "check": "node --check scripts/send-report.js && node --check scripts/export-backup.js && node --check scripts/restore-backup.js && node --check public/src/report/report.js && node --check public/src/report/report-data.js && node --check public/src/services/supabase-service.js",
+    "test:reports": "node --test scripts/send-report.test.js scripts/report-data.test.js"
   },
   "dependencies": {
     "node-fetch": "^3.3.2",
