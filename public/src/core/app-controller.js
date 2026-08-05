@@ -1131,7 +1131,7 @@ function buildTripProposalMarkup(trip) {
           </table>
 
           <p><strong>Observações:</strong></p>
-          <p>- Oferta válida por 30 dias a partir da data de emissão.</p>
+          <p>- Oferta válida por 7 dias a partir da data de emissão.</p>
           <p>- Valores incluem transporte (ida e volta) apenas.</p>
 
           <p class="proposal-doc__contact"><strong>Contato:</strong></p>
