@@ -1,9 +1,9 @@
 import { sessionService } from "./session-service.js";
-import { supabaseService } from "./supabase-service.js";
+import { firebaseService } from "./firebase-service.js";
 
 export const authService = {
   isCloudEnabled() {
-    return supabaseService.isConfigured();
+    return firebaseService.isConfigured();
   },
 
   hasSession() {
@@ -19,7 +19,7 @@ export const authService = {
       throw new Error("Login em nuvem não configurado.");
     }
 
-    const session = await supabaseService.signIn(
+    const session = await firebaseService.signIn(
       String(user).trim(),
       String(password).trim(),
     );
@@ -27,15 +27,15 @@ export const authService = {
     this.setSession(true);
 
     return {
-      mode: "supabase",
+      mode: "firebase",
       user: session?.user?.email || user,
+      profile: session.profile,
     };
   },
 
   async signOut() {
     if (this.isCloudEnabled()) {
-      await supabaseService.flush();
-      await supabaseService.signOut();
+      await firebaseService.signOut();
     }
 
     this.setSession(false);
@@ -43,6 +43,16 @@ export const authService = {
 
   async getSession() {
     if (!this.isCloudEnabled()) return null;
-    return supabaseService.getSession();
+    try {
+      const profile = await firebaseService.getCurrentUserProfile();
+      return { user: { uid: profile.uid, email: profile.email }, profile };
+    } catch (error) {
+      await firebaseService.signOut().catch(() => undefined);
+      throw error;
+    }
+  },
+
+  observeAuthState(callback) {
+    return firebaseService.observeAuthState(callback);
   },
 };

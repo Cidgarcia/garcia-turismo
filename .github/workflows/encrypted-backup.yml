@@ -8,9 +8,6 @@ on:
 permissions:
   contents: read
 
-env:
-  SUPABASE_STATE_ID: garcia_turismo_main
-
 jobs:
   backup:
     runs-on: ubuntu-latest
@@ -33,8 +30,9 @@ jobs:
         id: backup
         run: npm run backup:export
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_COMPANY_ID: garcia-turismo
           BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
 
       - name: Guardar backup criptografado

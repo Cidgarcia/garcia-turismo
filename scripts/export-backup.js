@@ -1,7 +1,21 @@
 import { createCipheriv, randomBytes } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
-import fetch from "node-fetch";
+import {
+  FIREBASE_COMPANY_ID,
+  getFirebaseAdminDb,
+  timestampToBackupValue,
+} from "./firebase-admin.js";
+
+const BACKUP_COLLECTIONS = [
+  "users",
+  "vehicles",
+  "expenses",
+  "trips",
+  "fuelings",
+  "employees",
+  "cards",
+];
 
 function required(name) {
   const value = String(process.env[name] || "").trim();
@@ -17,27 +31,18 @@ function encryptionKey() {
   return key;
 }
 
-async function fetchState() {
-  const supabaseUrl = required("SUPABASE_URL").replace(/\/$/, "");
-  const serviceKey = required("SUPABASE_SERVICE_ROLE_KEY");
-  const stateId = process.env.SUPABASE_STATE_ID || "garcia_turismo_main";
-  const url = new URL(`${supabaseUrl}/rest/v1/app_states`);
-  url.searchParams.set("id", `eq.${stateId}`);
-  url.searchParams.set("select", "id,data,updated_at");
-
-  const response = await fetch(url, {
-    headers: {
-      apikey: serviceKey,
-      Authorization: `Bearer ${serviceKey}`,
-      Accept: "application/json",
-      "User-Agent": "garcia-turismo-backup/1.0",
-    },
-  });
-  if (!response.ok) throw new Error(`Supabase respondeu ${response.status}: ${await response.text()}`);
-
-  const row = (await response.json())?.[0];
-  if (!row) throw new Error(`Estado ${stateId} não encontrado.`);
-  return row;
+async function fetchCollections() {
+  const db = getFirebaseAdminDb();
+  const entries = await Promise.all(BACKUP_COLLECTIONS.map(async (collectionName) => {
+    const snapshot = await db.collection(collectionName)
+      .where("companyId", "==", FIREBASE_COMPANY_ID)
+      .get();
+    return [collectionName, snapshot.docs.map((document) => ({
+      id: document.id,
+      data: timestampToBackupValue(document.data()),
+    }))];
+  }));
+  return Object.fromEntries(entries);
 }
 
 function encrypt(payload, key) {
@@ -49,7 +54,7 @@ function encrypt(payload, key) {
 
   return JSON.stringify({
     format: "garcia-turismo-backup",
-    version: 1,
+    version: 2,
     algorithm: "aes-256-gcm+gzip",
     iv: iv.toString("base64"),
     tag: tag.toString("base64"),
@@ -58,18 +63,23 @@ function encrypt(payload, key) {
 }
 
 async function main() {
-  const row = await fetchState();
+  const collections = await fetchCollections();
   const exportedAt = new Date().toISOString();
   const safeTimestamp = exportedAt.replace(/[:.]/g, "-");
   const outputDir = process.env.BACKUP_OUTPUT_DIR || "backups";
   const output = `${outputDir}/garcia-turismo-${safeTimestamp}.json.enc`;
+  const recordCount = Object.values(collections)
+    .reduce((total, records) => total + records.length, 0);
 
   await mkdir(outputDir, { recursive: true });
-  await writeFile(output, encrypt({ schemaVersion: 1, exportedAt, row }, encryptionKey()), {
-    mode: 0o600,
-  });
+  await writeFile(output, encrypt({
+    schemaVersion: 2,
+    exportedAt,
+    companyId: FIREBASE_COMPANY_ID,
+    collections,
+  }, encryptionKey()), { mode: 0o600 });
 
-  console.log(`Backup criptografado criado: ${output}`);
+  console.log(`Backup criptografado criado: ${output} (${recordCount} documentos).`);
   if (process.env.GITHUB_OUTPUT) {
     await writeFile(process.env.GITHUB_OUTPUT, `backup_file=${output}\n`, { flag: "a" });
   }

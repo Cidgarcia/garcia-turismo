@@ -56,6 +56,6 @@ jobs:
           REPORT_REPLY_TO: ${{ secrets.REPORT_REPLY_TO }}
           REPORT_MONTH: ${{ inputs.report_month }}
           REPORT_TIME_ZONE: America/Bahia
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_STATE_ID: garcia_turismo_main
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_COMPANY_ID: garcia-turismo

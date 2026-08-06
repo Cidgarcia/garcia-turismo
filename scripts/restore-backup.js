@@ -1,7 +1,21 @@
 import { createDecipheriv } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { gunzipSync } from "node:zlib";
-import fetch from "node-fetch";
+import {
+  FIREBASE_COMPANY_ID,
+  getFirebaseAdminDb,
+  timestampFromBackupValue,
+} from "./firebase-admin.js";
+
+const BACKUP_COLLECTIONS = [
+  "users",
+  "vehicles",
+  "expenses",
+  "trips",
+  "fuelings",
+  "employees",
+  "cards",
+];
 
 function required(name) {
   const value = String(process.env[name] || "").trim();
@@ -10,7 +24,7 @@ function required(name) {
 }
 
 function decrypt(envelope, key) {
-  if (envelope?.format !== "garcia-turismo-backup" || envelope?.version !== 1) {
+  if (envelope?.format !== "garcia-turismo-backup" || envelope?.version !== 2) {
     throw new Error("Formato de backup não reconhecido.");
   }
   const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(envelope.iv, "base64"));
@@ -22,28 +36,41 @@ function decrypt(envelope, key) {
   return JSON.parse(gunzipSync(compressed).toString("utf8"));
 }
 
-async function applyBackup(payload) {
-  const supabaseUrl = required("SUPABASE_URL").replace(/\/$/, "");
-  const serviceKey = required("SUPABASE_SERVICE_ROLE_KEY");
-  const row = payload?.row;
-  if (!row?.id || !row?.data) throw new Error("Backup não contém um estado válido.");
+function validatePayload(payload) {
+  if (payload?.schemaVersion !== 2 || payload.companyId !== FIREBASE_COMPANY_ID) {
+    throw new Error("Backup não pertence à empresa Firebase configurada.");
+  }
+  if (!payload.collections || typeof payload.collections !== "object") {
+    throw new Error("Backup não contém coleções válidas.");
+  }
 
-  const response = await fetch(`${supabaseUrl}/rest/v1/app_states?on_conflict=id`, {
-    method: "POST",
-    headers: {
-      apikey: serviceKey,
-      Authorization: `Bearer ${serviceKey}`,
-      "Content-Type": "application/json",
-      Prefer: "resolution=merge-duplicates,return=minimal",
-      "User-Agent": "garcia-turismo-backup/1.0",
-    },
-    body: JSON.stringify({
-      id: row.id,
-      data: row.data,
-      updated_at: new Date().toISOString(),
-    }),
-  });
-  if (!response.ok) throw new Error(`Supabase respondeu ${response.status}: ${await response.text()}`);
+  for (const collectionName of BACKUP_COLLECTIONS) {
+    const records = payload.collections[collectionName] || [];
+    if (!Array.isArray(records)) throw new Error(`Coleção inválida no backup: ${collectionName}`);
+    for (const record of records) {
+      if (!record?.id || record?.data?.companyId !== FIREBASE_COMPANY_ID) {
+        throw new Error(`Documento inválido no backup: ${collectionName}/${record?.id || "sem-id"}`);
+      }
+    }
+  }
+}
+
+async function applyBackup(payload) {
+  const db = getFirebaseAdminDb();
+  const operations = BACKUP_COLLECTIONS.flatMap((collectionName) =>
+    (payload.collections[collectionName] || []).map((record) => ({ collectionName, record })),
+  );
+
+  for (let offset = 0; offset < operations.length; offset += 400) {
+    const batch = db.batch();
+    for (const { collectionName, record } of operations.slice(offset, offset + 400)) {
+      batch.set(
+        db.collection(collectionName).doc(record.id),
+        timestampFromBackupValue(record.data),
+      );
+    }
+    await batch.commit();
+  }
 }
 
 async function main() {
@@ -55,12 +82,15 @@ async function main() {
 
   const envelope = JSON.parse(await readFile(file, "utf8"));
   const payload = decrypt(envelope, key);
-  console.log(`Backup válido. Exportado em: ${payload.exportedAt}`);
-  console.log(`Estado: ${payload.row.id}; atualização original: ${payload.row.updated_at || "não informada"}`);
+  validatePayload(payload);
+  const recordCount = Object.values(payload.collections)
+    .reduce((total, records) => total + records.length, 0);
+  console.log(`Backup válido. Exportado em: ${payload.exportedAt}; documentos: ${recordCount}.`);
+  console.log("Contas do Firebase Authentication não fazem parte deste backup.");
 
   if (process.argv.includes("--apply")) {
     await applyBackup(payload);
-    console.log("Backup restaurado no Supabase.");
+    console.log("Backup restaurado no Cloud Firestore.");
   } else {
     console.log("Validação concluída sem alterar o banco. Adicione --apply para restaurar.");
   }

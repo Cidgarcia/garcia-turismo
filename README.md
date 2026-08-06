@@ -1,54 +1,83 @@
-# 🚍 Garcia Turismo | Gestão Financeira
+# Garcia Turismo | Gestão Financeira
 
-Sistema completo de gestão financeira para controle de despesas, veículos, funcionários e geração automática de relatórios em PDF.
+Aplicação web para o controle financeiro, de veículos, abastecimentos, viagens e relatórios mensais da Garcia Turismo.
 
----
+## Arquitetura
 
-## Funcionalidades
+| Camada | Tecnologia |
+| --- | --- |
+| Frontend | HTML, CSS e JavaScript modular |
+| Autenticação | Firebase Authentication (e-mail e senha) |
+| Dados | Cloud Firestore, com documentos independentes por registro |
+| Relatórios | Playwright e template HTML |
+| E-mail | Resend |
+| Automação | GitHub Actions |
 
-- 📊 Dashboard financeiro
-- 🚗 Controle por veículo
-- 👨‍💼 Controle por funcionário
-- ⛽ Controle de combustível
-- 📅 Filtros por período
-- 📄 Geração de relatórios em PDF (automático)
-- ☁️ Persistência em nuvem (Supabase)
-- 📧 Envio automático de relatórios por email (Resend)
-- ⚙️ Automação mensal (GitHub Actions)
+Os dados operacionais pertencem à empresa `garcia-turismo`. Cada documento criado contém `companyId`, `createdAt`, `updatedAt` e `createdBy`.
 
----
+## Configuração local
 
-## 🏗️ Arquitetura
+1. Instale as dependências:
 
-| Camada     | Tecnologia           |
-| ---------- | -------------------- |
-| Frontend   | HTML + JS + Tailwind |
-| Backend    | Supabase (BaaS)      |
-| Automação  | GitHub Actions       |
-| PDF Engine | Playwright           |
-| Email      | Resend API           |
+   ```bash
+   npm install
+   ```
 
----
+2. A configuração pública do aplicativo Web já está em [firebase-config.js](public/src/config/firebase-config.js). Ao registrar outro aplicativo, atualize apenas os valores públicos do SDK; nunca use uma conta de serviço no frontend.
 
-## 📁 Estrutura do Projeto
+3. Ative o provedor **E-mail/senha** no Firebase Authentication e confira o perfil em `users/{uid}`:
 
-```text
-garcia-turismo/
-│
-├── public/                 # Frontend
-│   ├── index.html
-│   ├── report.html
-│   ├── favicon.png
-│   ├── assets/
-│   ├── styles/
-│   └── src/
-│
-├── scripts/                # Automação: PDF + envio
-│   └── send-report.js
-│
-├── .github/
-│   └── workflows/
-│       └── monthly-report.yml
-│
-├── package.json
-└── README.md
+   ```json
+   {
+     "role": "admin",
+     "companyId": "garcia-turismo",
+     "active": true
+   }
+   ```
+
+4. Copie `.env.example` para `.env` para executar scripts locais. Nunca versione `.env` nem a conta de serviço.
+
+5. Publique regras e índices após revisar:
+
+   ```bash
+   npx firebase-tools deploy --only firestore:rules,firestore:indexes --project garciaturismopnz
+   ```
+
+6. Sirva o frontend:
+
+   ```bash
+   npx serve public -l 5500
+   ```
+
+## GitHub Actions e secrets
+
+Configure os seguintes secrets do repositório:
+
+- `FIREBASE_PROJECT_ID`: `garciaturismopnz`.
+- `FIREBASE_SERVICE_ACCOUNT`: JSON completo da conta de serviço, em uma linha, sem imprimi-lo em logs.
+- `RESEND_API_KEY`, `REPORT_FROM`, `REPORT_TO` e, se necessário, `REPORT_REPLY_TO`.
+- `BACKUP_ENCRYPTION_KEY`: 32 bytes aleatórios em Base64.
+
+Os workflows mensais usam o Firebase Admin SDK exclusivamente no backend. O JSON da conta de serviço nunca é usado pelo navegador.
+
+## Scripts
+
+| Comando | Finalidade |
+| --- | --- |
+| `npm run check` | Valida a sintaxe dos scripts e módulos críticos. |
+| `npm run test:reports` | Executa testes dos relatórios. |
+| `npm run send-report` | Gera os PDFs do período e os envia pelo Resend. |
+| `npm run backup:export` | Exporta documentos do Firestore, compacta e criptografa. |
+| `npm run backup:restore -- arquivo.json.enc --apply` | Restaura um backup após validação explícita. |
+
+O backup contém as coleções `users`, `vehicles`, `expenses`, `trips`, `fuelings`, `employees` e `cards`. Contas do Firebase Authentication, inclusive senhas, exigem procedimento administrativo separado e não fazem parte do backup.
+
+## Testes com Emulator
+
+Para validar regras sem tocar na produção:
+
+```bash
+npx firebase-tools emulators:start --only auth,firestore --project garciaturismopnz
+```
+
+Em seguida, teste login válido, login inválido, usuário inativo, permissões de cada perfil e os fluxos de criação, edição e exclusão. Antes de publicar, valide também em dois navegadores diferentes que os dados criados no Firestore persistem após recarregar a página.

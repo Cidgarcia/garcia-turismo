@@ -1,0 +1,345 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed data model
+// ===============================================================
+// users/{uid}: role, companyId, active (authorization fields only).
+// Operational documents: companyId, createdAt, updatedAt, createdBy.
+// cards/{id}: recordType of card, buyer or cardSchedule.
+// auditLogs/{id}: append-only audit records created in the same batch as a
+// permitted operational write.
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function currentUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function activeUser() {
+      return signedIn() && currentUser().active == true;
+    }
+
+    function sameCompany(companyId) {
+      return activeUser() && currentUser().companyId == companyId;
+    }
+
+    function isAdmin() {
+      return activeUser() && currentUser().role == 'admin';
+    }
+
+    function isFinance() {
+      return activeUser()
+        && (currentUser().role == 'finance' || currentUser().role == 'financeiro');
+    }
+
+    function isOperator() {
+      return activeUser()
+        && (currentUser().role == 'operator' || currentUser().role == 'operador');
+    }
+
+    function hasOnly(data, fields) {
+      return data.keys().hasOnly(fields);
+    }
+
+    function requiredString(data, field, maxLength) {
+      return data[field] is string && data[field].size() > 0 && data[field].size() <= maxLength;
+    }
+
+    function optionalString(data, field, maxLength) {
+      return !(field in data) || (data[field] is string && data[field].size() <= maxLength);
+    }
+
+    function isoDate(data, field) {
+      return data[field] is string && data[field].matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    function nonNegativeNumber(data, field, maxValue) {
+      return data[field] is number && data[field] >= 0 && data[field] <= maxValue;
+    }
+
+    function validMetadata(data) {
+      return data.keys().hasAll(['companyId', 'createdAt', 'updatedAt', 'createdBy'])
+        && requiredString(data, 'companyId', 80)
+        && requiredString(data, 'createdBy', 160)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function validCreateMetadata(data) {
+      return validMetadata(data)
+        && data.companyId == currentUser().companyId
+        && data.createdBy == request.auth.uid
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    function validUpdateMetadata(data) {
+      return validMetadata(data)
+        && data.companyId == resource.data.companyId
+        && data.createdBy == resource.data.createdBy
+        && data.createdAt == resource.data.createdAt
+        && data.updatedAt == request.time;
+    }
+
+    function validVehicle(data) {
+      return hasOnly(data, [
+        'companyId', 'createdAt', 'updatedAt', 'createdBy',
+        'modelo', 'ano', 'cor', 'placa', 'kmAtual', 'lugares', 'status'
+      ])
+        && requiredString(data, 'modelo', 120)
+        && data.ano is number && data.ano >= 1900 && data.ano <= 2100
+        && requiredString(data, 'cor', 60)
+        && optionalString(data, 'placa', 16)
+        && nonNegativeNumber(data, 'kmAtual', 5000000)
+        && data.lugares is number && data.lugares >= 1 && data.lugares <= 100
+        && data.status in ['ativo', 'inativo'];
+    }
+
+    function validEmployee(data) {
+      return hasOnly(data, [
+        'companyId', 'createdAt', 'updatedAt', 'createdBy',
+        'nome', 'cargo', 'telefone', 'salarioBase', 'status'
+      ])
+        && requiredString(data, 'nome', 140)
+        && requiredString(data, 'cargo', 100)
+        && requiredString(data, 'telefone', 30)
+        && nonNegativeNumber(data, 'salarioBase', 1000000)
+        && data.status in ['ativo', 'inativo'];
+    }
+
+    function validPaymentDetails(data) {
+      return data.paymentDetails is map && data.paymentDetails.size() <= 8;
+    }
+
+    function validOptionalInstallments(data) {
+      return !('installments' in data)
+        || (data.installments is number && data.installments >= 1 && data.installments <= 120);
+    }
+
+    function validExpenseRelations(data) {
+      return data.keys().hasAll(['veiculoId', 'vehicleId', 'funcionarioId', 'employeeId'])
+        && optionalString(data, 'veiculoId', 160)
+        && optionalString(data, 'vehicleId', 160)
+        && optionalString(data, 'funcionarioId', 160)
+        && optionalString(data, 'employeeId', 160)
+        && data.veiculoId == data.vehicleId
+        && data.funcionarioId == data.employeeId;
+    }
+
+    function validExpense(data) {
+      return hasOnly(data, [
+        'companyId', 'createdAt', 'updatedAt', 'createdBy',
+        'data', 'categoria', 'descricao', 'descricaoGasto', 'valor',
+        'veiculoId', 'vehicleId', 'funcionarioId', 'employeeId',
+        'paymentMethod', 'status', 'comprovanteUrl', 'paymentDetails',
+        'cardId', 'buyerId', 'installments'
+      ])
+        && isoDate(data, 'data')
+        && requiredString(data, 'categoria', 80)
+        && requiredString(data, 'descricao', 800)
+        && optionalString(data, 'descricaoGasto', 800)
+        && nonNegativeNumber(data, 'valor', 10000000)
+        && validExpenseRelations(data)
+        && data.paymentMethod in ['pix', 'dinheiro', 'cheque', 'cartao_credito']
+        && data.status in ['pago', 'a_pagar']
+        && optionalString(data, 'comprovanteUrl', 500)
+        && validPaymentDetails(data)
+        && optionalString(data, 'cardId', 160)
+        && optionalString(data, 'buyerId', 160)
+        && validOptionalInstallments(data);
+    }
+
+    function validFueling(data) {
+      return hasOnly(data, [
+        'companyId', 'createdAt', 'updatedAt', 'createdBy',
+        'data', 'veiculoId', 'vehicleId', 'ultimoKm', 'kmAtual', 'litros',
+        'valorTotal', 'distanciaPercorrida', 'mediaKmLitro', 'precoLitro',
+        'paymentMethod', 'status', 'paymentDetails', 'cardId', 'buyerId', 'installments'
+      ])
+        && isoDate(data, 'data')
+        && requiredString(data, 'veiculoId', 160)
+        && data.vehicleId == data.veiculoId
+        && nonNegativeNumber(data, 'ultimoKm', 5000000)
+        && nonNegativeNumber(data, 'kmAtual', 5000000) && data.kmAtual > data.ultimoKm
+        && nonNegativeNumber(data, 'litros', 10000) && data.litros > 0
+        && nonNegativeNumber(data, 'valorTotal', 10000000)
+        && nonNegativeNumber(data, 'distanciaPercorrida', 5000000)
+        && nonNegativeNumber(data, 'mediaKmLitro', 1000)
+        && nonNegativeNumber(data, 'precoLitro', 10000)
+        && data.paymentMethod in ['pix', 'dinheiro', 'cheque', 'cartao_credito']
+        && data.status in ['pago', 'a_pagar']
+        && validPaymentDetails(data)
+        && optionalString(data, 'cardId', 160)
+        && optionalString(data, 'buyerId', 160)
+        && validOptionalInstallments(data);
+    }
+
+    function validTrip(data) {
+      return hasOnly(data, [
+        'companyId', 'createdAt', 'updatedAt', 'createdBy',
+        'responsible', 'client', 'origin', 'destination', 'stops', 'itinerary',
+        'vehicleIds', 'vehicleId', 'employeeId', 'departureDate', 'returnDate',
+        'durationDays', 'vehiclesQty', 'oneWayKm', 'totalKm', 'pricePerKm',
+        'baseValue', 'discount', 'finalValue', 'status', 'emissionDate'
+      ])
+        && requiredString(data, 'responsible', 140)
+        && requiredString(data, 'client', 140)
+        && requiredString(data, 'origin', 220)
+        && requiredString(data, 'destination', 220)
+        && data.stops is list && data.stops.size() <= 10
+        && data.itinerary is list && data.itinerary.size() >= 2 && data.itinerary.size() <= 12
+        && data.vehicleIds is list && data.vehicleIds.size() <= 10
+        && optionalString(data, 'vehicleId', 160)
+        && optionalString(data, 'employeeId', 160)
+        && isoDate(data, 'departureDate') && isoDate(data, 'returnDate')
+        && data.returnDate >= data.departureDate
+        && data.durationDays is number && data.durationDays >= 1 && data.durationDays <= 365
+        && data.vehiclesQty is number && data.vehiclesQty >= 1 && data.vehiclesQty <= 10
+        && nonNegativeNumber(data, 'oneWayKm', 100000)
+        && nonNegativeNumber(data, 'totalKm', 200000) && data.totalKm > 0
+        && nonNegativeNumber(data, 'pricePerKm', 10000)
+        && nonNegativeNumber(data, 'baseValue', 10000000) && data.baseValue > 0
+        && nonNegativeNumber(data, 'discount', 10000000)
+        && nonNegativeNumber(data, 'finalValue', 10000000) && data.finalValue > 0
+        && requiredString(data, 'status', 40)
+        && isoDate(data, 'emissionDate');
+    }
+
+    function validCard(data) {
+      return hasOnly(data, [
+        'companyId', 'createdAt', 'updatedAt', 'createdBy',
+        'recordType', 'nome', 'fechamento', 'vencimento'
+      ])
+        && data.recordType == 'card'
+        && requiredString(data, 'nome', 100)
+        && data.fechamento is number && data.fechamento >= 1 && data.fechamento <= 31
+        && data.vencimento is number && data.vencimento >= 1 && data.vencimento <= 31;
+    }
+
+    function validBuyer(data) {
+      return hasOnly(data, [
+        'companyId', 'createdAt', 'updatedAt', 'createdBy',
+        'recordType', 'nome', 'status'
+      ])
+        && data.recordType == 'buyer'
+        && requiredString(data, 'nome', 140)
+        && data.status in ['ativo', 'inativo'];
+    }
+
+    function validCardSchedule(data) {
+      return hasOnly(data, [
+        'companyId', 'createdAt', 'updatedAt', 'createdBy', 'recordType',
+        'sourceType', 'sourceId', 'description', 'cardId', 'buyerId', 'parcela',
+        'totalParcelas', 'valor', 'vencimento', 'status', 'veiculoId', 'vehicleId',
+        'funcionarioId', 'employeeId', 'category'
+      ])
+        && data.recordType == 'cardSchedule'
+        && data.sourceType in ['expense', 'fuel']
+        && requiredString(data, 'sourceId', 160)
+        && requiredString(data, 'description', 900)
+        && requiredString(data, 'cardId', 160)
+        && requiredString(data, 'buyerId', 160)
+        && data.parcela is number && data.parcela >= 1 && data.parcela <= 120
+        && data.totalParcelas is number && data.totalParcelas >= data.parcela && data.totalParcelas <= 120
+        && nonNegativeNumber(data, 'valor', 10000000)
+        && isoDate(data, 'vencimento')
+        && data.status in ['pago', 'a_pagar', 'futuro']
+        && validExpenseRelations(data)
+        && optionalString(data, 'category', 80);
+    }
+
+    function validCardsRecord(data) {
+      return validCard(data) || validBuyer(data) || validCardSchedule(data);
+    }
+
+    function canCreate(data) {
+      return sameCompany(data.companyId) && validCreateMetadata(data);
+    }
+
+    function canUpdate(data) {
+      return sameCompany(resource.data.companyId) && validUpdateMetadata(data);
+    }
+
+    function isValidUser(data) {
+      return hasOnly(data, ['role', 'companyId', 'active'])
+        && requiredString(data, 'companyId', 80)
+        && data.role in ['admin', 'finance', 'financeiro', 'operator', 'operador']
+        && data.active is bool;
+    }
+
+    match /users/{userId} {
+      allow get: if signedIn() && request.auth.uid == userId;
+      allow list: if isAdmin() && resource.data.companyId == currentUser().companyId;
+      allow create: if isAdmin()
+        && request.resource.data.companyId == currentUser().companyId
+        && isValidUser(request.resource.data);
+      allow update: if isAdmin()
+        && resource.data.companyId == currentUser().companyId
+        && request.resource.data.companyId == resource.data.companyId
+        && isValidUser(request.resource.data);
+      allow delete: if isAdmin() && resource.data.companyId == currentUser().companyId;
+    }
+
+    match /vehicles/{vehicleId} {
+      allow read: if sameCompany(resource.data.companyId);
+      allow create: if isAdmin() && canCreate(request.resource.data) && validVehicle(request.resource.data);
+      allow update: if isAdmin() && canUpdate(request.resource.data) && validVehicle(request.resource.data);
+      allow delete: if isAdmin() && sameCompany(resource.data.companyId);
+    }
+
+    match /expenses/{expenseId} {
+      allow read: if sameCompany(resource.data.companyId);
+      allow create: if (isAdmin() || isFinance()) && canCreate(request.resource.data) && validExpense(request.resource.data);
+      allow update: if (isAdmin() || isFinance()) && canUpdate(request.resource.data) && validExpense(request.resource.data);
+      allow delete: if (isAdmin() || isFinance()) && sameCompany(resource.data.companyId);
+    }
+
+    match /trips/{tripId} {
+      allow read: if sameCompany(resource.data.companyId);
+      allow create: if (isAdmin() || isOperator()) && canCreate(request.resource.data) && validTrip(request.resource.data);
+      allow update: if (isAdmin() || isOperator()) && canUpdate(request.resource.data) && validTrip(request.resource.data);
+      allow delete: if (isAdmin() || isOperator()) && sameCompany(resource.data.companyId);
+    }
+
+    match /fuelings/{fuelingId} {
+      allow read: if sameCompany(resource.data.companyId);
+      allow create: if (isAdmin() || isOperator()) && canCreate(request.resource.data) && validFueling(request.resource.data);
+      allow update: if (isAdmin() || isOperator()) && canUpdate(request.resource.data) && validFueling(request.resource.data);
+      allow delete: if (isAdmin() || isOperator()) && sameCompany(resource.data.companyId);
+    }
+
+    match /employees/{employeeId} {
+      allow read: if sameCompany(resource.data.companyId);
+      allow create: if isAdmin() && canCreate(request.resource.data) && validEmployee(request.resource.data);
+      allow update: if isAdmin() && canUpdate(request.resource.data) && validEmployee(request.resource.data);
+      allow delete: if isAdmin() && sameCompany(resource.data.companyId);
+    }
+
+    match /cards/{cardId} {
+      allow read: if sameCompany(resource.data.companyId);
+      allow create: if isAdmin() && canCreate(request.resource.data) && validCardsRecord(request.resource.data);
+      allow update: if isAdmin() && canUpdate(request.resource.data) && validCardsRecord(request.resource.data);
+      allow delete: if isAdmin() && sameCompany(resource.data.companyId);
+    }
+
+    match /auditLogs/{logId} {
+      allow get, list: if isAdmin() && sameCompany(resource.data.companyId);
+      allow create: if activeUser()
+        && hasOnly(request.resource.data, [
+          'action', 'collection', 'documentId', 'companyId', 'createdBy', 'createdAt'
+        ])
+        && request.resource.data.action in ['create', 'update', 'delete']
+        && requiredString(request.resource.data, 'collection', 40)
+        && requiredString(request.resource.data, 'documentId', 160)
+        && request.resource.data.companyId == currentUser().companyId
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.createdAt == request.time;
+    }
+  }
+}
