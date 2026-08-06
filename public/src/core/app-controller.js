@@ -18,8 +18,6 @@ const state = {
     tripManualFinal: false,
     tripPreviewData: null,
   },
-  storageKey: APP_CONFIG.storageKey,
-  sessionKey: APP_CONFIG.sessionKey,
   data: {
     employees: [],
     vehicles: [],
@@ -111,13 +109,26 @@ function seedData() {
   return JSON.parse(JSON.stringify(INITIAL_DATA));
 }
 
-function persist() {
-  state.data = databaseService.persist(state.data);
+async function saveFirestoreRecord(recordType, listName, payload, options = {}) {
+  const list = state.data[listName];
+  const index = list.findIndex((item) => item.id === payload.id);
+  const saved = index >= 0
+    ? await databaseService.update(recordType, payload.id, payload)
+    : await databaseService.create(recordType, payload);
+
+  if (index >= 0) list[index] = { ...payload, ...saved };
+  else if (options.prepend) list.unshift({ ...payload, ...saved });
+  else list.push({ ...payload, ...saved });
+  return saved;
+}
+
+async function removeFirestoreRecord(recordType, listName, id) {
+  await databaseService.remove(recordType, id);
+  state.data[listName] = state.data[listName].filter((item) => item.id !== id);
 }
 
 function load() {
-  state.data = databaseService.loadLocal();
-  persist();
+  state.data = seedData();
 }
 
 async function loadCloudDataIfAvailable() {
@@ -125,18 +136,16 @@ async function loadCloudDataIfAvailable() {
   try {
     const remoteData = await databaseService.loadRemote();
     if (remoteData) {
-      state.data = databaseService.saveLocal(remoteData);
+      state.data = { ...seedData(), ...remoteData };
       renderAll();
-      showToast("Dados carregados do Supabase.", "success");
+      showToast("Dados carregados do Firebase.", "success");
       return;
     }
 
-    await databaseService.saveRemoteNow(state.data);
-    showToast("Dados locais enviados para o Supabase.", "success");
   } catch (error) {
-    console.error("Erro ao carregar dados do Supabase:", error);
+    console.error("Erro ao carregar dados do Firebase:", error);
     showToast(
-      "Não foi possível sincronizar com o Supabase. Usando dados locais.",
+      "Não foi possível carregar os dados do Firebase.",
       "error",
     );
   }
@@ -1062,6 +1071,7 @@ function buildTripPayloadFromForm({ silent = false } = {}) {
     stops,
     itinerary: [origin, ...stops, destination],
     vehicleIds: selectedVehicleIds,
+    vehicleId: selectedVehicleIds[0] || "",
     departureDate,
     returnDate,
     durationDays,
@@ -1360,25 +1370,28 @@ function bindTrips() {
       block: "start",
     });
   });
-  $("#tripForm").addEventListener("submit", (event) => {
+  $("#tripForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const payload = buildTripPayloadFromForm();
     if (!payload) return;
     const index = state.data.trips.findIndex((trip) => trip.id === payload.id);
-    if (index >= 0) state.data.trips[index] = payload;
-    else state.data.trips.unshift(payload);
-    state.ui.tripPreviewData = payload;
-    state.ui.tripMonth = payload.departureDate.slice(0, 7);
-    state.ui.tripSelectedDate = payload.departureDate;
-    persist();
-    renderAll();
-    renderTripPreview();
-    showToast(
-      index >= 0
-        ? "Viagem atualizada com sucesso."
-        : "Viagem cadastrada com sucesso.",
-      "success",
-    );
+    try {
+      await saveFirestoreRecord("Trip", "trips", payload, { prepend: true });
+      state.ui.tripPreviewData = payload;
+      state.ui.tripMonth = payload.departureDate.slice(0, 7);
+      state.ui.tripSelectedDate = payload.departureDate;
+      renderAll();
+      renderTripPreview();
+      showToast(
+        index >= 0
+          ? "Viagem atualizada com sucesso."
+          : "Viagem cadastrada com sucesso.",
+        "success",
+      );
+    } catch (error) {
+      console.error("Erro ao salvar viagem:", error);
+      showToast(error.message || "Não foi possível salvar a viagem.", "error");
+    }
   });
   $("#tripExportPdfBtn").addEventListener("click", exportTripProposalPdf);
   $("#tripExportImageBtn").addEventListener("click", exportTripProposalImage);
@@ -1528,7 +1541,7 @@ function calculateFuelPreview() {
   return { lastKm, currentKm, liters, total, distance, average, pricePerLiter };
 }
 
-function addCardSchedules({
+function buildCardSchedules({
   sourceType,
   sourceId,
   description,
@@ -1544,8 +1557,9 @@ function addCardSchedules({
   extra = "",
 }) {
   const card = state.data.cards.find((x) => x.id === cardId);
-  if (!card) return;
+  if (!card) return [];
   const basePart = Number((totalValue / parcelas).toFixed(2));
+  const schedules = [];
 
   for (let i = 1; i <= parcelas; i++) {
     const due = calculateInvoiceMonth(
@@ -1558,7 +1572,7 @@ function addCardSchedules({
       i === parcelas
         ? Number((totalValue - basePart * (parcelas - 1)).toFixed(2))
         : basePart;
-    state.data.cardSchedules.unshift({
+    schedules.push({
       id: uid(),
       sourceType,
       sourceId,
@@ -1571,10 +1585,13 @@ function addCardSchedules({
       vencimento: due.vencimento,
       status: i === 1 ? firstStatus : "a_pagar",
       veiculoId: vehicleId,
+      vehicleId,
       funcionarioId: employeeId,
+      employeeId,
       category,
     });
   }
+  return schedules;
 }
 
 function openModal(html) {
@@ -1667,41 +1684,52 @@ window.openEntityModal = function (type, id = "") {
   bindEntityForm();
 };
 
-window.removeEntity = function (type, id) {
+window.removeEntity = async function (type, id) {
   if (!confirm("Tem certeza que deseja continuar?")) return;
 
-  if (type === "employee") {
-    const item = state.data.employees.find((x) => x.id === id);
-    if (item) item.status = "inativo";
-  }
-  if (type === "vehicle") {
-    const item = state.data.vehicles.find((x) => x.id === id);
-    if (item) item.status = "inativo";
-  }
-  if (type === "buyer") {
-    const item = state.data.buyers.find((x) => x.id === id);
-    if (item) item.status = "inativo";
-  }
-  if (type === "card") {
-    state.data.cards = state.data.cards.filter((x) => x.id !== id);
-  }
+  const configuration = {
+    employee: { recordType: "Employee", listName: "employees", inactive: true },
+    vehicle: { recordType: "Vehicle", listName: "vehicles", inactive: true },
+    buyer: { recordType: "Buyer", listName: "buyers", inactive: true },
+    card: { recordType: "Card", listName: "cards", inactive: false },
+  }[type];
+  if (!configuration) return;
 
-  persist();
-  renderAll();
-  showToast("Registro atualizado.", "success");
+  try {
+    if (configuration.inactive) {
+      const item = state.data[configuration.listName].find((entry) => entry.id === id);
+      if (!item) throw new Error("Registro não encontrado.");
+      await saveFirestoreRecord(configuration.recordType, configuration.listName, {
+        ...item,
+        status: "inativo",
+      });
+    } else {
+      await removeFirestoreRecord(configuration.recordType, configuration.listName, id);
+    }
+    renderAll();
+    showToast("Registro atualizado.", "success");
+  } catch (error) {
+    console.error("Erro ao atualizar registro:", error);
+    showToast(error.message || "Não foi possível atualizar o registro.", "error");
+  }
 };
 
 function bindEntityForm() {
   const form = $("#entityForm");
   if (!form) return;
 
-  form.addEventListener("submit", (e) => {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(form).entries());
     const id = data.entityId || uid();
+    let recordType = "";
+    let listName = "";
+    let payload = null;
 
     if (data.entityType === "employee") {
-      const payload = {
+      recordType = "Employee";
+      listName = "employees";
+      payload = {
         id,
         nome: data.nome,
         cargo: data.cargo,
@@ -1709,14 +1737,12 @@ function bindEntityForm() {
         salarioBase: Number(data.salarioBase),
         status: "ativo",
       };
-      const index = state.data.employees.findIndex((x) => x.id === id);
-      index >= 0
-        ? (state.data.employees[index] = payload)
-        : state.data.employees.push(payload);
     }
 
     if (data.entityType === "vehicle") {
-      const payload = {
+      recordType = "Vehicle";
+      listName = "vehicles";
+      payload = {
         id,
         modelo: data.modelo,
         ano: Number(data.ano),
@@ -1726,37 +1752,35 @@ function bindEntityForm() {
         lugares: Math.max(Number(data.lugares || 0), 1),
         status: data.status,
       };
-      const index = state.data.vehicles.findIndex((x) => x.id === id);
-      index >= 0
-        ? (state.data.vehicles[index] = payload)
-        : state.data.vehicles.push(payload);
     }
 
     if (data.entityType === "buyer") {
-      const payload = { id, nome: data.nome, status: data.status };
-      const index = state.data.buyers.findIndex((x) => x.id === id);
-      index >= 0
-        ? (state.data.buyers[index] = payload)
-        : state.data.buyers.push(payload);
+      recordType = "Buyer";
+      listName = "buyers";
+      payload = { id, nome: data.nome, status: data.status };
     }
 
     if (data.entityType === "card") {
-      const payload = {
+      recordType = "Card";
+      listName = "cards";
+      payload = {
         id,
         nome: data.nome,
         fechamento: Number(data.fechamento),
         vencimento: Number(data.vencimento),
       };
-      const index = state.data.cards.findIndex((x) => x.id === id);
-      index >= 0
-        ? (state.data.cards[index] = payload)
-        : state.data.cards.push(payload);
     }
 
-    persist();
-    renderAll();
-    closeModal();
-    showToast("Cadastro salvo com sucesso.", "success");
+    if (!payload) return;
+    try {
+      await saveFirestoreRecord(recordType, listName, payload);
+      renderAll();
+      closeModal();
+      showToast("Cadastro salvo com sucesso.", "success");
+    } catch (error) {
+      console.error("Erro ao salvar cadastro:", error);
+      showToast(error.message || "Não foi possível salvar o cadastro.", "error");
+    }
   });
 }
 
@@ -1798,7 +1822,7 @@ async function validateCloudSession() {
     setSession(isValid);
     return isValid;
   } catch (error) {
-    console.warn("Sessão do Supabase inválida ou expirada:", error);
+    console.warn("Sessão do Firebase inválida ou expirada:", error);
     setSession(false);
     return false;
   }
@@ -1830,7 +1854,7 @@ function bindLogin() {
 
     try {
       const result = await authService.signIn(user, pass);
-      if (result.mode === "supabase") {
+      if (result.mode === "firebase") {
         await loadCloudDataIfAvailable();
       }
       switchScreens();
@@ -1844,7 +1868,6 @@ function bindLogin() {
 
   $("#logoutBtn").addEventListener("click", async () => {
     try {
-      await databaseService.flush();
       await authService.signOut();
     } catch (error) {
       console.error("Erro ao sair:", error);
@@ -1865,7 +1888,7 @@ function bindExpenseForm() {
     document.querySelector('[data-tab="despesas"]').click(),
   );
 
-  $("#expenseForm").addEventListener("submit", (e) => {
+  $("#expenseForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const category = $("#expenseCategory").value;
     const paymentMethod = $("#expensePayment").value;
@@ -1893,6 +1916,8 @@ function bindExpenseForm() {
       comprovanteUrl: $("#expenseProof").value || "",
       paymentDetails: {},
     };
+    payload.vehicleId = payload.veiculoId;
+    payload.employeeId = payload.funcionarioId;
 
     if (paymentMethod === "pix" || paymentMethod === "dinheiro") {
       payload.paymentDetails = {
@@ -1917,6 +1942,7 @@ function bindExpenseForm() {
       };
     }
 
+    let schedules = [];
     if (paymentMethod === "cartao_credito") {
       const cardId = $("#expenseCard").value;
       const buyerId = $("#expenseBuyer").value;
@@ -1932,7 +1958,7 @@ function bindExpenseForm() {
         tipo: "cartao_credito",
         parcelas: installments,
       };
-      addCardSchedules({
+      schedules = buildCardSchedules({
         sourceType: "expense",
         sourceId: payload.id,
         description,
@@ -1949,12 +1975,43 @@ function bindExpenseForm() {
       });
     }
 
-    state.data.expenses.unshift(payload);
-    persist();
-    renderAll();
-    clearExpenseForm();
-    showToast("Despesa salva com sucesso.", "success");
+    try {
+      await saveFirestoreRecord("Expense", "expenses", payload, { prepend: true });
+      for (const schedule of schedules) {
+        await saveFirestoreRecord("CardSchedule", "cardSchedules", schedule, { prepend: true });
+      }
+      renderAll();
+      clearExpenseForm();
+      showToast("Despesa salva com sucesso.", "success");
+    } catch (error) {
+      console.error("Erro ao salvar despesa:", error);
+      showToast(error.message || "Não foi possível salvar a despesa.", "error");
+    }
   });
+}
+
+function bindAuthState() {
+  if (!authService.isCloudEnabled()) return;
+
+  authService.observeAuthState((session) => {
+    if (session?.error) {
+      console.warn("Perfil Firebase inválido:", session.error);
+      authService.signOut().catch(() => undefined);
+      setSession(false);
+      state.data = seedData();
+      switchScreens();
+      return;
+    }
+
+    if (!session) {
+      setSession(false);
+      state.data = seedData();
+      switchScreens();
+      return;
+    }
+
+    setSession(true);
+  }).catch((error) => console.warn("Falha ao observar a sessão Firebase:", error));
 }
 
 function bindFuelForm() {
@@ -1972,7 +2029,7 @@ function bindFuelForm() {
 
   $("#fuelPayment").addEventListener("change", toggleFuelFields);
 
-  $("#fuelForm").addEventListener("submit", (e) => {
+  $("#fuelForm").addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const vehicleId = $("#fuelVehicle").value;
@@ -1994,6 +2051,7 @@ function bindFuelForm() {
       id: uid(),
       data: today(),
       veiculoId: vehicleId,
+      vehicleId,
       ultimoKm: metrics.lastKm,
       kmAtual: metrics.currentKm,
       litros: metrics.liters,
@@ -2029,6 +2087,7 @@ function bindFuelForm() {
       };
     }
 
+    let schedules = [];
     if (paymentMethod === "cartao_credito") {
       const cardId = $("#fuelCard").value;
       const buyerId = $("#fuelBuyer").value;
@@ -2044,7 +2103,7 @@ function bindFuelForm() {
         tipo: "cartao_credito",
         parcelas: installments,
       };
-      addCardSchedules({
+      schedules = buildCardSchedules({
         sourceType: "fuel",
         sourceId: payload.id,
         description: `Abastecimento ${getVehicleName(vehicleId)}`,
@@ -2060,18 +2119,29 @@ function bindFuelForm() {
       });
     }
 
-    state.data.fuelings.unshift(payload);
     const vehicle = state.data.vehicles.find((v) => v.id === vehicleId);
-    if (vehicle) vehicle.kmAtual = metrics.currentKm;
-
-    persist();
-    renderAll();
-    clearFuelForm();
-    showToast("Abastecimento salvo com sucesso.", "success");
+    try {
+      await saveFirestoreRecord("Fueling", "fuelings", payload, { prepend: true });
+      for (const schedule of schedules) {
+        await saveFirestoreRecord("CardSchedule", "cardSchedules", schedule, { prepend: true });
+      }
+      if (vehicle) {
+        await saveFirestoreRecord("Vehicle", "vehicles", {
+          ...vehicle,
+          kmAtual: metrics.currentKm,
+        });
+      }
+      renderAll();
+      clearFuelForm();
+      showToast("Abastecimento salvo com sucesso.", "success");
+    } catch (error) {
+      console.error("Erro ao salvar abastecimento:", error);
+      showToast(error.message || "Não foi possível salvar o abastecimento.", "error");
+    }
   });
 }
 
-window.deleteExpense = function (id) {
+window.deleteExpense = async function (id) {
   if (
     !confirm(
       "Tem certeza que deseja excluir esta despesa? Essa ação não pode ser desfeita.",
@@ -2085,22 +2155,54 @@ window.deleteExpense = function (id) {
     return;
   }
 
-  state.data.expenses = state.data.expenses.filter((x) => x.id !== id);
-  state.data.cardSchedules = state.data.cardSchedules.filter(
-    (x) => !(x.sourceType === "expense" && x.sourceId === id),
-  );
-  persist();
+  try {
+    const schedules = state.data.cardSchedules.filter(
+      (item) => item.sourceType === "expense" && item.sourceId === id,
+    );
+    await Promise.all([
+      removeFirestoreRecord("Expense", "expenses", id),
+      ...schedules.map((item) => removeFirestoreRecord("CardSchedule", "cardSchedules", item.id)),
+    ]);
+  } catch (error) {
+    console.error("Erro ao excluir despesa:", error);
+    showToast(error.message || "Não foi possível excluir a despesa.", "error");
+    return;
+  }
   renderAll();
   showToast("Despesa excluída com sucesso.", "success");
 };
 
-window.deleteReportEntry = function (rowType, id) {
+window.deleteReportEntry = async function (rowType, id) {
   if (
     !confirm(
       "Tem certeza que deseja excluir este lançamento do relatório? Essa ação não pode ser desfeita.",
     )
   )
     return;
+
+  const configuration = {
+    expense: { recordType: "Expense", listName: "expenses" },
+    fuel: { recordType: "Fueling", listName: "fuelings" },
+    schedule: { recordType: "CardSchedule", listName: "cardSchedules" },
+  }[rowType];
+  if (!configuration || !state.data[configuration.listName].some((item) => item.id === id)) {
+    showToast("Lançamento não encontrado.", "error");
+    return;
+  }
+
+  try {
+    const schedules = rowType === "schedule" ? [] : state.data.cardSchedules.filter(
+      (item) => item.sourceType === rowType && item.sourceId === id,
+    );
+    await Promise.all([
+      databaseService.remove(configuration.recordType, id),
+      ...schedules.map((item) => databaseService.remove("CardSchedule", item.id)),
+    ]);
+  } catch (error) {
+    console.error("Erro ao excluir lançamento:", error);
+    showToast(error.message || "Não foi possível excluir o lançamento.", "error");
+    return;
+  }
 
   if (rowType === "expense") {
     const expense = state.data.expenses.find((x) => x.id === id);
@@ -2137,12 +2239,11 @@ window.deleteReportEntry = function (rowType, id) {
     );
   }
 
-  persist();
   renderAll();
   showToast("Lançamento excluído com sucesso.", "success");
 };
 
-window.undoReportPayment = function (rowType, id) {
+window.undoReportPayment = async function (rowType, id) {
   if (!confirm("Tem certeza que deseja estornar esta baixa?")) return;
 
   let item = null;
@@ -2157,31 +2258,53 @@ window.undoReportPayment = function (rowType, id) {
     return;
   }
 
-  item.status = rowType === "schedule" ? "futuro" : "a_pagar";
-  persist();
+  const recordType = rowType === "expense"
+    ? "Expense"
+    : rowType === "fuel"
+      ? "Fueling"
+      : "CardSchedule";
+  const status = rowType === "schedule" ? "futuro" : "a_pagar";
+  try {
+    await databaseService.update(recordType, id, { ...item, status });
+    item.status = status;
+  } catch (error) {
+    console.error("Erro ao estornar baixa:", error);
+    showToast(error.message || "Não foi possível estornar a baixa.", "error");
+    return;
+  }
   renderAll();
   showToast("Baixa estornada com sucesso.", "success");
 };
 
-window.markPendingAsPaid = function (rowType, id) {
+window.markPendingAsPaid = async function (rowType, id) {
   if (!confirm("Tem certeza que deseja dar baixa nesta pendência?")) return;
 
-  if (rowType === "expense") {
-    const item = state.data.expenses.find((x) => x.id === id);
-    if (item) item.status = "pago";
+  const configuration = {
+    expense: { recordType: "Expense", listName: "expenses" },
+    fuel: { recordType: "Fueling", listName: "fuelings" },
+    schedule: { recordType: "CardSchedule", listName: "cardSchedules" },
+  }[rowType];
+  const item = configuration
+    ? state.data[configuration.listName].find((entry) => entry.id === id)
+    : null;
+
+  if (!item || !configuration) {
+    showToast("Lançamento não encontrado.", "error");
+    return;
   }
 
-  if (rowType === "fuel") {
-    const item = state.data.fuelings.find((x) => x.id === id);
-    if (item) item.status = "pago";
+  try {
+    await databaseService.update(configuration.recordType, id, {
+      ...item,
+      status: "pago",
+    });
+    item.status = "pago";
+  } catch (error) {
+    console.error("Erro ao dar baixa na pendência:", error);
+    showToast(error.message || "Não foi possível dar baixa na pendência.", "error");
+    return;
   }
 
-  if (rowType === "schedule") {
-    const item = state.data.cardSchedules.find((x) => x.id === id);
-    if (item) item.status = "pago";
-  }
-
-  persist();
   renderAll();
   showToast("Pendência baixada com sucesso.", "success");
 };
@@ -2278,6 +2401,7 @@ async function init() {
   switchScreens();
   bindTabs();
   bindLogin();
+  bindAuthState();
   bindExpenseForm();
   bindFuelForm();
   bindTrips();

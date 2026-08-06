@@ -51,8 +51,8 @@ function renderReport(data, period, vehicle = null) {
   root.innerHTML = `
     <section id="reportArea" class="report-document">
       <header class="report-document__header">
-        <div class="report-document__logo-crop" aria-hidden="true">
-          <img src="./assets/GARCIA TURISMO.png" alt="" class="report-document__logo" />
+        <div class="report-document__logo-frame" aria-hidden="true">
+          <img src="./assets/garcia-turismo-report.png" alt="" class="report-document__logo" />
         </div>
         <div class="report-document__heading">
           <p class="report-document__eyebrow">Garcia Turismo · Financeiro</p>
@@ -79,7 +79,7 @@ function renderReport(data, period, vehicle = null) {
         </div>
       </div>
       <div class="report-document__table-wrap">
-        <table class="report-document__table">
+        <table class="report-document__table report-table">
           <colgroup>
             <col class="report-document__col-date" />
             <col class="report-document__col-type" />

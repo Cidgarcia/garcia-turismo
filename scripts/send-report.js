@@ -1,11 +1,10 @@
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
-import fetch from "node-fetch";
+import { FIREBASE_COMPANY_ID, getFirebaseAdminDb } from "./firebase-admin.js";
 
 const SITE_BASE_URL = process.env.SITE_BASE_URL || "http://127.0.0.1:5500";
 const RESEND_API_URL = "https://api.resend.com/emails";
-const STATE_ID = process.env.SUPABASE_STATE_ID || "garcia_turismo_main";
 const TIME_ZONE = process.env.REPORT_TIME_ZONE || "America/Bahia";
 const MAX_MESSAGE_BYTES = 35 * 1024 * 1024;
 const MAX_RETRIES = 3;
@@ -29,8 +28,8 @@ function getConfig() {
   if (!config) {
     config = {
       resendApiKey: requireEnv("RESEND_API_KEY"),
-      supabaseUrl: requireEnv("SUPABASE_URL").replace(/\/$/, ""),
-      supabaseServiceRoleKey: requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
+      firebaseProjectId: requireEnv("FIREBASE_PROJECT_ID"),
+      firebaseServiceAccount: requireEnv("FIREBASE_SERVICE_ACCOUNT"),
       from: requireEnv("REPORT_FROM"),
       to: parseRecipients(requireEnv("REPORT_TO")),
       replyTo: parseRecipients(process.env.REPORT_REPLY_TO || ""),
@@ -100,32 +99,45 @@ function resolveReportPeriod() {
   return { key: `${year}-${monthString}`, start, end, label };
 }
 
-async function fetchAppState() {
-  const currentConfig = getConfig();
-  const url = new URL(`${currentConfig.supabaseUrl}/rest/v1/app_states`);
-  url.searchParams.set("id", `eq.${STATE_ID}`);
-  url.searchParams.set("select", "data");
+function documentData(snapshot) {
+  return { id: snapshot.id, ...snapshot.data() };
+}
 
-  const response = await fetch(url, {
-    headers: {
-      apikey: currentConfig.supabaseServiceRoleKey,
-      Authorization: `Bearer ${currentConfig.supabaseServiceRoleKey}`,
-      Accept: "application/json",
-      "User-Agent": "garcia-turismo-reports/1.0",
-    },
-  });
+async function fetchCollectionByCompany(db, collectionName) {
+  const snapshot = await db.collection(collectionName)
+    .where("companyId", "==", FIREBASE_COMPANY_ID)
+    .get();
+  return snapshot.docs.map(documentData);
+}
 
-  if (!response.ok) {
-    throw new Error(`Supabase respondeu ${response.status}: ${await response.text()}`);
-  }
+async function fetchMonthlyCollection(db, collectionName, period) {
+  const snapshot = await db.collection(collectionName)
+    .where("companyId", "==", FIREBASE_COMPANY_ID)
+    .where("data", ">=", period.start)
+    .where("data", "<=", period.end)
+    .get();
+  return snapshot.docs.map(documentData);
+}
 
-  const rows = await response.json();
-  const data = rows?.[0]?.data;
-  if (!data || typeof data !== "object") {
-    throw new Error(`Nenhum estado válido encontrado no Supabase para o id ${STATE_ID}.`);
-  }
+export async function fetchAppState(period) {
+  const db = getFirebaseAdminDb();
+  const [vehicles, expenses, fuelings, cards] = await Promise.all([
+    fetchCollectionByCompany(db, "vehicles"),
+    fetchMonthlyCollection(db, "expenses", period),
+    fetchMonthlyCollection(db, "fuelings", period),
+    fetchCollectionByCompany(db, "cards"),
+  ]);
 
-  return data;
+  return {
+    vehicles,
+    expenses,
+    fuelings,
+    cardSchedules: cards.filter((item) =>
+      item.recordType === "cardSchedule"
+      && String(item.vencimento || "") >= period.start
+      && String(item.vencimento || "") <= period.end,
+    ),
+  };
 }
 
 function slugify(value) {
@@ -253,9 +265,10 @@ async function generatePdf(browser, { data, period, vehicle = null, filename }) 
     const pdf = await page.pdf({
       format: "A4",
       landscape: true,
+      scale: 1,
       printBackground: true,
       preferCSSPageSize: true,
-      margin: { top: "8mm", right: "8mm", bottom: "8mm", left: "8mm" },
+      margin: { top: "8mm", right: "8mm", bottom: "10mm", left: "10mm" },
     });
 
     return {
@@ -363,7 +376,7 @@ async function main() {
   const period = resolveReportPeriod();
   console.log(`Gerando relatórios de ${period.start} a ${period.end} (${TIME_ZONE}).`);
 
-  const data = await fetchAppState();
+  const data = await fetchAppState(period);
   const vehicleReports = buildVehicleReports(data, period);
   const browser = await chromium.launch({ headless: true });
   const attachments = [];

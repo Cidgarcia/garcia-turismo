@@ -6,16 +6,21 @@
     "send-report": "node scripts/send-report.js",
     "backup:export": "node scripts/export-backup.js",
     "backup:restore": "node scripts/restore-backup.js",
-    "check": "node --check scripts/send-report.js && node --check scripts/export-backup.js && node --check scripts/restore-backup.js && node --check public/src/report/report.js && node --check public/src/report/report-data.js && node --check public/src/services/supabase-service.js",
-    "test:reports": "node --test scripts/send-report.test.js scripts/report-data.test.js"
+    "check": "node --check scripts/firebase-admin.js && node --check scripts/send-report.js && node --check scripts/export-backup.js && node --check scripts/restore-backup.js && node --check scripts/firestore-rules.test.js && node --check public/src/app.js && node --check public/src/core/app-controller.js && node --check public/src/report/report.js && node --check public/src/report/report-data.js && node --check public/src/services/firebase-service.js",
+    "test:reports": "node --test scripts/send-report.test.js scripts/report-data.test.js",
+    "test:rules": "node --test scripts/firestore-rules.test.js"
   },
   "dependencies": {
-    "node-fetch": "^3.3.2",
+    "firebase": "^12.17.1",
+    "firebase-admin": "^14.2.0",
     "playwright": "^1.56.0",
     "serve": "^14.2.6",
     "wait-on": "^9.0.5"
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1"
   }
 }

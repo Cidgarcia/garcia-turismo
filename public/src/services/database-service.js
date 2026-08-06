@@ -1,41 +1,39 @@
-import { storageService } from './storage-service.js';
-import { supabaseService } from './supabase-service.js';
+import { firebaseService } from "./firebase-service.js";
 
 export const databaseService = {
   isCloudEnabled() {
-    return supabaseService.isConfigured();
+    return firebaseService.isConfigured();
   },
 
   loadLocal() {
-    return storageService.load();
+    return null;
   },
 
   saveLocal(data) {
-    return storageService.save(data);
+    return data;
   },
 
   clearLocal() {
-    storageService.clear();
-  },
-
-  persist(data) {
-    const normalized = storageService.save(data);
-    storageService.maybeAutoBackup(normalized);
-    supabaseService.scheduleSave(normalized);
-    return normalized;
+    // Dados operacionais vivem somente no Firestore. Não há estado autoritativo local.
   },
 
   async loadRemote() {
     if (!this.isCloudEnabled()) return null;
-    return supabaseService.loadState();
+    return firebaseService.loadOperationalData();
   },
 
-  async saveRemoteNow(data) {
-    if (!this.isCloudEnabled()) return false;
-    return supabaseService.saveStateNow(data);
+  async create(collection, payload) {
+    const method = `create${collection}`;
+    return firebaseService[method](payload);
   },
 
-  async flush() {
-    return supabaseService.flush();
+  async update(collection, id, payload) {
+    const method = `update${collection}`;
+    return firebaseService[method](id, payload);
+  },
+
+  async remove(collection, id) {
+    const method = `delete${collection}`;
+    return firebaseService[method](id);
   }
 };
