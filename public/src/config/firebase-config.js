@@ -1,6 +1,8 @@
-// A configuração Web do Firebase é pública e identifica somente o aplicativo
-// cliente. Contas de serviço e chaves administrativas ficam exclusivamente
-// nos secrets usados pelos scripts de backend.
+// A chave de API da configuração Web do Firebase é pública e identifica apenas
+// este cliente; ela não concede acesso aos dados por si só. O acesso é protegido
+// pelo Firebase Authentication e pelas regras em `firestore.rules`, na raiz do
+// repositório. A Service Account é administrativa, não é pública e fica apenas
+// nos secrets usados pelos scripts de backend e pelo GitHub Actions.
 export const FIREBASE_CONFIG = Object.freeze({
   apiKey: "AIzaSyCCdbuShWRTZ0vfn_uKSFQBjYMacXLeBwY",
   authDomain: "garciaturismopnz.firebaseapp.com",

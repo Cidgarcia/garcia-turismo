@@ -2,7 +2,7 @@ name: Backup criptografado Garcia Turismo
 
 on:
   schedule:
-    - cron: "30 12 * * *"
+    - cron: "0 6 * * *"
   workflow_dispatch:
 
 permissions:
