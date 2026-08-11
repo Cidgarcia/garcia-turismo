@@ -5,6 +5,8 @@ rules_version = '2';
 // ===============================================================
 // users/{uid}: role, companyId, active (authorization fields only).
 // Operational documents: companyId, createdAt, updatedAt, createdBy.
+// expenses/{id} optionally stores employeePaymentType, competenceMonth and tripId
+// only when an employee payment is classified.
 // cards/{id}: recordType of card, buyer or cardSchedule.
 // auditLogs/{id}: append-only audit records created in the same batch as a
 // permitted operational write.
@@ -131,13 +133,37 @@ service cloud.firestore {
         && data.funcionarioId == data.employeeId;
     }
 
+    function validEmployeePayment(data) {
+      return (
+        !('employeePaymentType' in data)
+        && !('competenceMonth' in data)
+        && !('tripId' in data)
+      ) || (
+        data.keys().hasAll(['employeePaymentType', 'competenceMonth'])
+        && requiredString(data, 'employeeId', 160)
+        && data.funcionarioId == data.employeeId
+        && exists(/databases/$(database)/documents/employees/$(data.employeeId))
+        && get(/databases/$(database)/documents/employees/$(data.employeeId)).data.companyId == currentUser().companyId
+        && data.employeePaymentType in ['advance', 'salary', 'daily', 'other']
+        && data.competenceMonth is string
+        && data.competenceMonth.matches('^\\d{4}-(0[1-9]|1[0-2])$')
+        && optionalString(data, 'tripId', 160)
+        && (!('tripId' in data) || (
+          data.employeePaymentType == 'daily'
+          && exists(/databases/$(database)/documents/trips/$(data.tripId))
+          && get(/databases/$(database)/documents/trips/$(data.tripId)).data.companyId == currentUser().companyId
+        ))
+      );
+    }
+
     function validExpense(data) {
       return hasOnly(data, [
         'companyId', 'createdAt', 'updatedAt', 'createdBy',
         'data', 'categoria', 'descricao', 'descricaoGasto', 'valor',
         'veiculoId', 'vehicleId', 'funcionarioId', 'employeeId',
         'paymentMethod', 'status', 'comprovanteUrl', 'paymentDetails',
-        'cardId', 'buyerId', 'installments'
+        'cardId', 'buyerId', 'installments', 'employeePaymentType',
+        'competenceMonth', 'tripId'
       ])
         && isoDate(data, 'data')
         && requiredString(data, 'categoria', 80)
@@ -151,7 +177,8 @@ service cloud.firestore {
         && validPaymentDetails(data)
         && optionalString(data, 'cardId', 160)
         && optionalString(data, 'buyerId', 160)
-        && validOptionalInstallments(data);
+        && validOptionalInstallments(data)
+        && validEmployeePayment(data);
     }
 
     function validFueling(data) {

@@ -59,6 +59,29 @@ export function renderDespesasTab() {
             </select>
           </div>
 
+          <div id="wrapExpenseEmployeePaymentType" class="hidden-section">
+            <label class="block text-sm font-medium mb-2">Tipo de pagamento do funcionário</label>
+            <select id="expenseEmployeePaymentType" class="field">
+              <option value="">Não classificado</option>
+              <option value="advance">Vale / Adiantamento</option>
+              <option value="salary">Pagamento de salário</option>
+              <option value="daily">Diária de viagem</option>
+              <option value="other">Outro pagamento ao funcionário</option>
+            </select>
+          </div>
+
+          <div id="wrapExpenseCompetenceMonth" class="hidden-section">
+            <label class="block text-sm font-medium mb-2">Mês de competência</label>
+            <input id="expenseCompetenceMonth" type="month" class="field" />
+          </div>
+
+          <div id="wrapExpenseTrip" class="hidden-section">
+            <label class="block text-sm font-medium mb-2">Viagem vinculada (opcional)</label>
+            <select id="expenseTrip" class="field">
+              <option value="">Sem vínculo com viagem</option>
+            </select>
+          </div>
+
           <div>
             <label class="block text-sm font-medium mb-2">Forma de pagamento</label>
             <select id="expensePayment" class="field" required>
@@ -132,6 +155,20 @@ export function renderDespesasTab() {
           </div>
         </form>
       </div>
+
+      <section class="card p-6 space-y-4 mt-6" aria-labelledby="employeePaymentsTitle">
+        <div class="employee-payments__header">
+          <div>
+            <h3 id="employeePaymentsTitle" class="text-xl font-semibold">Pagamentos de funcionários</h3>
+            <p class="muted mt-1">Acompanhe salário, diárias e outros pagamentos por competência.</p>
+          </div>
+          <div class="employee-payments__month">
+            <label class="block text-sm font-medium mb-2" for="employeePaymentsMonth">Mês de competência</label>
+            <input id="employeePaymentsMonth" type="month" class="field" />
+          </div>
+        </div>
+        <div id="employeePaymentsList" class="employee-payments-list"></div>
+      </section>
 
       <div class="card p-6 space-y-4 mt-6">
         <div class="flex flex-wrap items-center justify-between gap-3">

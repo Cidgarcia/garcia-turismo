@@ -17,7 +17,7 @@ export function renderCadastrosTab() {
                   <th>Nome</th>
                   <th>Cargo</th>
                   <th>Telefone</th>
-                  <th>Salário</th>
+                  <th>Valor mensal</th>
                   <th></th>
                 </tr>
               </thead>

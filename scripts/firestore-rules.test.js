@@ -64,6 +64,17 @@ function expense(uid) {
   };
 }
 
+function employeePaymentExpense(uid, overrides = {}) {
+  return {
+    ...expense(uid),
+    funcionarioId: "employee-seed",
+    employeeId: "employee-seed",
+    employeePaymentType: "advance",
+    competenceMonth: "2026-08",
+    ...overrides,
+  };
+}
+
 function trip(uid) {
   return {
     ...metadata(uid),
@@ -141,6 +152,7 @@ before(async () => {
       setDoc(doc(db, "users", "other-company"), { role: "admin", companyId: "outra-empresa", active: true }),
       setDoc(doc(db, "vehicles", "vehicle-seed"), vehicle("admin", "seed")),
       setDoc(doc(db, "employees", "employee-seed"), employee("admin")),
+      setDoc(doc(db, "trips", "trip-seed"), trip("admin")),
     ]);
   });
 });
@@ -190,6 +202,46 @@ test("financeiro somente altera despesas", async () => {
   await assertSucceeds(deleteDoc(expenseRef));
   await assertFails(setDoc(doc(finance, "vehicles", "vehicle-finance"), vehicle("finance", "finance")));
   await assertFails(setDoc(doc(finance, "fuelings", "fuel-finance"), fueling("finance")));
+});
+
+test("financeiro grava apenas classificações válidas de pagamentos de funcionários", async () => {
+  const finance = dbFor("finance");
+  await assertSucceeds(setDoc(
+    doc(finance, "expenses", "employee-payment-valid"),
+    employeePaymentExpense("finance"),
+  ));
+  await assertSucceeds(setDoc(
+    doc(finance, "expenses", "employee-payment-daily-trip"),
+    employeePaymentExpense("finance", { employeePaymentType: "daily", tripId: "trip-seed" }),
+  ));
+  await assertFails(setDoc(
+    doc(finance, "expenses", "employee-payment-invalid-type"),
+    employeePaymentExpense("finance", { employeePaymentType: "bonus" }),
+  ));
+  await assertFails(setDoc(
+    doc(finance, "expenses", "employee-payment-invalid-month"),
+    employeePaymentExpense("finance", { competenceMonth: "08-2026" }),
+  ));
+  await assertFails(setDoc(
+    doc(finance, "expenses", "employee-payment-invalid-calendar-month"),
+    employeePaymentExpense("finance", { competenceMonth: "2026-13" }),
+  ));
+  await assertFails(setDoc(
+    doc(finance, "expenses", "employee-payment-invalid-trip-type"),
+    employeePaymentExpense("finance", { employeePaymentType: "salary", tripId: "trip-seed" }),
+  ));
+  await assertFails(setDoc(
+    doc(finance, "expenses", "employee-payment-without-employee"),
+    employeePaymentExpense("finance", { funcionarioId: "", employeeId: "" }),
+  ));
+  await assertFails(setDoc(
+    doc(finance, "expenses", "employee-payment-unknown-employee"),
+    employeePaymentExpense("finance", { funcionarioId: "employee-unknown", employeeId: "employee-unknown" }),
+  ));
+  await assertFails(setDoc(
+    doc(finance, "expenses", "employee-payment-extra-field"),
+    employeePaymentExpense("finance", { unexpected: "schema fechado" }),
+  ));
 });
 
 test("operador somente altera viagens e abastecimentos", async () => {

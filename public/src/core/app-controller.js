@@ -15,6 +15,7 @@ import {
 } from "./controller-helpers.js";
 import { createDashboardController } from "./dashboard-controller.js";
 import { createDespesasController } from "./despesas-controller.js";
+import { createEmployeePaymentsController } from "./employee-payments-controller.js";
 import { showToast } from "./notifications.js";
 import { createRelatoriosController } from "./relatorios-controller.js";
 import { createViagensController } from "./viagens-controller.js";
@@ -61,6 +62,7 @@ const despesasController = createDespesasController({
   saveFirestoreRecord,
   showToast,
 });
+const employeePaymentsController = createEmployeePaymentsController({ state });
 const abastecimentosController = createAbastecimentosController({
   state,
   getVehicleName,
@@ -147,6 +149,7 @@ function renderAll() {
   viagensController.renderTripDaySummary();
   viagensController.renderTripsTable();
   despesasController.renderExpenseTable();
+  employeePaymentsController.renderEmployeePayments();
   relatoriosController.renderPending();
   relatoriosController.renderReport();
   viagensController.renderTripPreview();
@@ -286,6 +289,7 @@ async function init() {
   bindLogin();
   bindAuthState();
   despesasController.bindExpenseForm();
+  employeePaymentsController.bindEmployeePayments();
   abastecimentosController.bindFuelForm();
   viagensController.bindTrips();
   relatoriosController.bindReports();

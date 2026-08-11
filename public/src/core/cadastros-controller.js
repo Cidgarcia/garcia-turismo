@@ -148,7 +148,7 @@ export function createCadastrosController({
                 <div><label class="block text-sm font-medium mb-2">Nome</label><input class="field" name="nome" value="${escapeHtml(item.nome || "")}" required></div>
                 <div><label class="block text-sm font-medium mb-2">Cargo</label><input class="field" name="cargo" value="${escapeHtml(item.cargo || "")}" required></div>
                 <div><label class="block text-sm font-medium mb-2">Telefone</label><input class="field" name="telefone" value="${escapeHtml(item.telefone || "")}" required></div>
-                <div><label class="block text-sm font-medium mb-2">Salário base</label><input type="number" min="0" step="0.01" class="field" name="salarioBase" value="${item.salarioBase || ""}" required></div>
+                <div><label class="block text-sm font-medium mb-2">Valor mensal planejado</label><input type="number" min="0" step="0.01" class="field" name="salarioBase" value="${item.salarioBase || ""}" placeholder="Ex.: 2500,00"></div>
                 <div class="md:col-span-2 flex justify-end"><button class="rounded-2xl px-5 py-4 btn-primary font-semibold">Salvar</button></div>
               </form>`,
       },

@@ -50,18 +50,65 @@ export function createDespesasController({
     $("#wrapExpenseOtherDescription").classList.toggle("hidden-section", !isOther);
     $("#expenseOtherDescription").required = isOther;
     togglePaymentBlocks("expense");
+    toggleEmployeePaymentFields();
+  }
+
+  function setDefaultCompetenceMonth() {
+    const date = $("#expenseDate").value;
+    const competenceInput = $("#expenseCompetenceMonth");
+    const defaultMonth = date ? date.slice(0, 7) : "";
+    if (!defaultMonth) return;
+    if (!competenceInput.value || competenceInput.value === competenceInput.dataset.defaultMonth) {
+      competenceInput.value = defaultMonth;
+    }
+    competenceInput.dataset.defaultMonth = defaultMonth;
+  }
+
+  function renderTripOptions() {
+    const tripInput = $("#expenseTrip");
+    const selectedTripId = tripInput.value;
+    const options = [...state.data.trips]
+      .sort((first, second) => (second.departureDate || "").localeCompare(first.departureDate || ""))
+      .map((trip) => {
+        const name = trip.destination || trip.client || "Viagem sem destino";
+        const date = trip.departureDate ? ` · ${formatDate(trip.departureDate)}` : "";
+        return `<option value="${escapeHtml(trip.id)}">${escapeHtml(`${name}${date}`)}</option>`;
+      })
+      .join("");
+    tripInput.innerHTML = `<option value="">Sem vínculo com viagem</option>${options}`;
+    tripInput.value = selectedTripId;
+  }
+
+  function toggleEmployeePaymentFields() {
+    const hasEmployee = Boolean($("#expenseEmployee").value);
+    const paymentType = $("#expenseEmployeePaymentType").value;
+    const isDaily = paymentType === "daily";
+    $("#wrapExpenseEmployeePaymentType").classList.toggle("hidden-section", !hasEmployee);
+    $("#wrapExpenseCompetenceMonth").classList.toggle("hidden-section", !hasEmployee);
+    $("#wrapExpenseTrip").classList.toggle("hidden-section", !hasEmployee || !isDaily);
+    if (!hasEmployee) {
+      $("#expenseEmployeePaymentType").value = "";
+      $("#expenseTrip").value = "";
+      return;
+    }
+    setDefaultCompetenceMonth();
+    if (isDaily) renderTripOptions();
   }
 
   function clearExpenseForm() {
     $("#expenseForm").reset();
     $("#expenseDate").value = today();
     $("#expenseInstallments").value = "1";
+    $("#expenseCompetenceMonth").dataset.defaultMonth = "";
     toggleExpenseFields();
   }
 
   function bindExpenseForm() {
     $("#expenseCategory").addEventListener("change", toggleExpenseFields);
     $("#expensePayment").addEventListener("change", toggleExpenseFields);
+    $("#expenseEmployee").addEventListener("change", toggleEmployeePaymentFields);
+    $("#expenseEmployeePaymentType").addEventListener("change", toggleEmployeePaymentFields);
+    $("#expenseDate").addEventListener("change", setDefaultCompetenceMonth);
     $("#expenseClearBtn").addEventListener("click", clearExpenseForm);
     $("#openQuickExpense").addEventListener("click", () =>
       document.querySelector('[data-tab="despesas"]').click(),
@@ -74,6 +121,8 @@ export function createDespesasController({
       const value = Number($("#expenseAmount").value);
       const description = $("#expenseDescription").value.trim();
       const otherDescription = $("#expenseOtherDescription").value.trim();
+      const employeePaymentType = $("#expenseEmployeePaymentType").value;
+      const competenceMonth = $("#expenseCompetenceMonth").value;
       if (category === "outros" && !otherDescription) {
         showToast("Informe a descrição do gasto em Outros.", "error");
         return;
@@ -87,6 +136,17 @@ export function createDespesasController({
       };
       payload.vehicleId = payload.veiculoId;
       payload.employeeId = payload.funcionarioId;
+      if (payload.employeeId && employeePaymentType) {
+        if (!competenceMonth) {
+          showToast("Informe o mês de competência do pagamento do funcionário.", "error");
+          return;
+        }
+        payload.employeePaymentType = employeePaymentType;
+        payload.competenceMonth = competenceMonth;
+        if (employeePaymentType === "daily" && $("#expenseTrip").value) {
+          payload.tripId = $("#expenseTrip").value;
+        }
+      }
       if (paymentMethod === "pix" || paymentMethod === "dinheiro") {
         payload.paymentDetails = { tipo: paymentMethod, instantaneo: true, vencimento: payload.data };
       }
