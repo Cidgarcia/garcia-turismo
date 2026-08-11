@@ -65,11 +65,16 @@ function expense(uid) {
 }
 
 function employeePaymentExpense(uid, overrides = {}) {
+  const type = overrides.employeePaymentType || "advance";
+  const category = ["advance", "salary"].includes(type)
+    ? "salarios_adiantamentos"
+    : "viagens_extras";
   return {
     ...expense(uid),
+    categoria: category,
     funcionarioId: "employee-seed",
     employeeId: "employee-seed",
-    employeePaymentType: "advance",
+    employeePaymentType: type,
     competenceMonth: "2026-08",
     ...overrides,
   };
@@ -242,6 +247,45 @@ test("financeiro grava apenas classificações válidas de pagamentos de funcion
     doc(finance, "expenses", "employee-payment-extra-field"),
     employeePaymentExpense("finance", { unexpected: "schema fechado" }),
   ));
+});
+
+test("admin cria vale e categorias incoerentes de pagamento sao bloqueadas", async () => {
+  const admin = dbFor("admin");
+  const finance = dbFor("finance");
+  await assertSucceeds(setDoc(
+    doc(admin, "expenses", "employee-payment-admin-advance"),
+    employeePaymentExpense("admin"),
+  ));
+  await assertSucceeds(setDoc(
+    doc(finance, "expenses", "employee-payment-salary"),
+    employeePaymentExpense("finance", { employeePaymentType: "salary" }),
+  ));
+  await assertSucceeds(setDoc(
+    doc(finance, "expenses", "employee-payment-daily-no-trip"),
+    employeePaymentExpense("finance", { employeePaymentType: "daily" }),
+  ));
+  await assertSucceeds(setDoc(
+    doc(finance, "expenses", "employee-payment-other"),
+    employeePaymentExpense("finance", { employeePaymentType: "other" }),
+  ));
+  await assertFails(setDoc(
+    doc(finance, "expenses", "employee-payment-invalid-salary-category"),
+    employeePaymentExpense("finance", { employeePaymentType: "salary", categoria: "viagens_extras" }),
+  ));
+  await assertFails(setDoc(
+    doc(finance, "expenses", "employee-payment-invalid-daily-category"),
+    employeePaymentExpense("finance", { employeePaymentType: "daily", categoria: "salarios_adiantamentos" }),
+  ));
+});
+
+test("pagamento de funcionario nao permite trocar a empresa", async () => {
+  const finance = dbFor("finance");
+  const reference = doc(finance, "expenses", "employee-payment-company-lock");
+  await assertSucceeds(setDoc(reference, employeePaymentExpense("finance")));
+  await assertFails(updateDoc(reference, {
+    companyId: "outra-empresa",
+    updatedAt: serverTimestamp(),
+  }));
 });
 
 test("operador somente altera viagens e abastecimentos", async () => {

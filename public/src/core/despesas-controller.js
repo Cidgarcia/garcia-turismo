@@ -10,6 +10,13 @@ import {
   uid,
 } from "./controller-helpers.js";
 import { buildCardSchedules, togglePaymentBlocks } from "./payment-utils.js";
+import {
+  getAllowedEmployeePaymentTypes,
+  getEmployeePaymentCategory,
+  getEmployeePaymentTypeLabel,
+  isEmployeePaymentCategory,
+  isValidEmployeePaymentCombination,
+} from "../utils/employee-payments.js";
 
 export function createDespesasController({
   state,
@@ -20,6 +27,8 @@ export function createDespesasController({
   saveFirestoreRecord,
   showToast,
 }) {
+  let quickEmployeePayment = false;
+
   function renderExpenseTable() {
     const rows = [...state.data.expenses].sort((a, b) =>
       (b.data || "").localeCompare(a.data || ""),
@@ -43,14 +52,6 @@ export function createDespesasController({
         )
         .join("") ||
       '<tr><td colspan="7" class="text-center muted py-6">Nenhuma despesa lançada até agora.</td></tr>';
-  }
-
-  function toggleExpenseFields() {
-    const isOther = $("#expenseCategory").value === "outros";
-    $("#wrapExpenseOtherDescription").classList.toggle("hidden-section", !isOther);
-    $("#expenseOtherDescription").required = isOther;
-    togglePaymentBlocks("expense");
-    toggleEmployeePaymentFields();
   }
 
   function setDefaultCompetenceMonth() {
@@ -79,23 +80,58 @@ export function createDespesasController({
     tripInput.value = selectedTripId;
   }
 
+  function renderEmployeePaymentTypeOptions(category) {
+    const typeInput = $("#expenseEmployeePaymentType");
+    const selectedType = typeInput.value;
+    const allowedTypes = getAllowedEmployeePaymentTypes(category);
+    const options = allowedTypes
+      .map((type) => `<option value="${type}">${escapeHtml(getEmployeePaymentTypeLabel(type))}</option>`)
+      .join("");
+    typeInput.innerHTML = `<option value="">Selecione</option>${options}`;
+    if (allowedTypes.includes(selectedType)) {
+      typeInput.value = selectedType;
+    }
+  }
+
   function toggleEmployeePaymentFields() {
-    const hasEmployee = Boolean($("#expenseEmployee").value);
-    const paymentType = $("#expenseEmployeePaymentType").value;
-    const isDaily = paymentType === "daily";
-    $("#wrapExpenseEmployeePaymentType").classList.toggle("hidden-section", !hasEmployee);
-    $("#wrapExpenseCompetenceMonth").classList.toggle("hidden-section", !hasEmployee);
-    $("#wrapExpenseTrip").classList.toggle("hidden-section", !hasEmployee || !isDaily);
-    if (!hasEmployee) {
-      $("#expenseEmployeePaymentType").value = "";
+    const category = $("#expenseCategory").value;
+    const isEmployeeCategory = isEmployeePaymentCategory(category);
+    const isExtrasCategory = category === "viagens_extras";
+    const isEmployeeFlow = isEmployeeCategory || quickEmployeePayment;
+    const typeInput = $("#expenseEmployeePaymentType");
+    const employeeInput = $("#expenseEmployee");
+    const competenceInput = $("#expenseCompetenceMonth");
+
+    $("#wrapExpenseEmployee").classList.toggle("hidden-section", !isEmployeeFlow);
+    $("#wrapExpenseEmployeePaymentType").classList.toggle("hidden-section", !isEmployeeCategory);
+    $("#wrapExpenseCompetenceMonth").classList.toggle("hidden-section", !isEmployeeFlow);
+    $("#wrapExpenseTrip").classList.toggle("hidden-section", !isExtrasCategory);
+    $("#expenseEmployeeQuickTypes").classList.toggle("hidden-section", !quickEmployeePayment);
+
+    employeeInput.required = isEmployeeCategory;
+    typeInput.required = isEmployeeCategory;
+    competenceInput.required = isEmployeeCategory;
+
+    if (!isEmployeeFlow) {
+      employeeInput.value = "";
+      typeInput.value = "";
+      competenceInput.value = "";
       $("#expenseTrip").value = "";
       return;
     }
+
     setDefaultCompetenceMonth();
-    if (isDaily) renderTripOptions();
+    if (isEmployeeCategory) renderEmployeePaymentTypeOptions(category);
+    if (isExtrasCategory) renderTripOptions();
+  }
+
+  function toggleExpenseFields() {
+    togglePaymentBlocks("expense");
+    toggleEmployeePaymentFields();
   }
 
   function clearExpenseForm() {
+    quickEmployeePayment = false;
     $("#expenseForm").reset();
     $("#expenseDate").value = today();
     $("#expenseInstallments").value = "1";
@@ -103,13 +139,50 @@ export function createDespesasController({
     toggleExpenseFields();
   }
 
+  function chooseQuickEmployeePayment(type) {
+    const category = getEmployeePaymentCategory(type);
+    if (!category) return;
+    quickEmployeePayment = false;
+    $("#expenseCategory").value = category;
+    toggleExpenseFields();
+    $("#expenseEmployeePaymentType").value = type;
+    toggleEmployeePaymentFields();
+    $("#expenseDescription").focus();
+  }
+
+  function startEmployeePayment({ employeeId, competenceMonth }) {
+    const employee = state.data.employees.find((item) => item.id === employeeId);
+    if (!employee) {
+      showToast("Funcionário não encontrado para iniciar o lançamento.", "error");
+      return;
+    }
+
+    $("#expenseForm").reset();
+    $("#expenseDate").value = today();
+    $("#expenseInstallments").value = "1";
+    $("#expenseEmployee").value = employeeId;
+    $("#expenseCompetenceMonth").value = competenceMonth || today().slice(0, 7);
+    $("#expenseCompetenceMonth").dataset.defaultMonth = $("#expenseCompetenceMonth").value;
+    quickEmployeePayment = true;
+    toggleExpenseFields();
+    $("#expenseForm").scrollIntoView({ behavior: "smooth", block: "start" });
+    $("[data-employee-payment-quick-type]")?.focus();
+  }
+
   function bindExpenseForm() {
-    $("#expenseCategory").addEventListener("change", toggleExpenseFields);
+    $("#expenseCategory").addEventListener("change", () => {
+      quickEmployeePayment = false;
+      toggleExpenseFields();
+    });
     $("#expensePayment").addEventListener("change", toggleExpenseFields);
     $("#expenseEmployee").addEventListener("change", toggleEmployeePaymentFields);
     $("#expenseEmployeePaymentType").addEventListener("change", toggleEmployeePaymentFields);
     $("#expenseDate").addEventListener("change", setDefaultCompetenceMonth);
     $("#expenseClearBtn").addEventListener("click", clearExpenseForm);
+    $("#expenseEmployeeQuickTypes").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-employee-payment-quick-type]");
+      if (button) chooseQuickEmployeePayment(button.dataset.employeePaymentQuickType);
+    });
     $("#openQuickExpense").addEventListener("click", () =>
       document.querySelector('[data-tab="despesas"]').click(),
     );
@@ -120,32 +193,35 @@ export function createDespesasController({
       const status = $("#expenseStatus").value;
       const value = Number($("#expenseAmount").value);
       const description = $("#expenseDescription").value.trim();
-      const otherDescription = $("#expenseOtherDescription").value.trim();
       const employeePaymentType = $("#expenseEmployeePaymentType").value;
       const competenceMonth = $("#expenseCompetenceMonth").value;
-      if (category === "outros" && !otherDescription) {
-        showToast("Informe a descrição do gasto em Outros.", "error");
+      const isEmployeePayment = isEmployeePaymentCategory(category);
+      const employeeId = isEmployeePayment ? $("#expenseEmployee").value : "";
+
+      if (isEmployeePayment && (!employeeId || !employeePaymentType || !competenceMonth)) {
+        showToast("Selecione funcionário, tipo e mês de competência.", "error");
         return;
       }
+      if (isEmployeePayment && !isValidEmployeePaymentCombination(category, employeePaymentType)) {
+        showToast("O tipo selecionado não é permitido para esta categoria.", "error");
+        return;
+      }
+
       const payload = {
         id: uid(), data: $("#expenseDate").value, categoria: category,
-        descricao: description, descricaoGasto: category === "outros" ? otherDescription : "",
+        descricao: description, descricaoGasto: "",
         valor: value, veiculoId: $("#expenseVehicle").value || "",
-        funcionarioId: $("#expenseEmployee").value || "", paymentMethod, status,
+        funcionarioId: employeeId, paymentMethod, status,
         comprovanteUrl: $("#expenseProof").value || "", paymentDetails: {},
       };
       payload.vehicleId = payload.veiculoId;
       payload.employeeId = payload.funcionarioId;
-      if (payload.employeeId && employeePaymentType) {
-        if (!competenceMonth) {
-          showToast("Informe o mês de competência do pagamento do funcionário.", "error");
-          return;
-        }
+
+      if (isEmployeePayment) {
         payload.employeePaymentType = employeePaymentType;
         payload.competenceMonth = competenceMonth;
-        if (employeePaymentType === "daily" && $("#expenseTrip").value) {
-          payload.tripId = $("#expenseTrip").value;
-        }
+        const tripId = $("#expenseTrip").value;
+        if (category === "viagens_extras" && tripId) payload.tripId = tripId;
       }
       if (paymentMethod === "pix" || paymentMethod === "dinheiro") {
         payload.paymentDetails = { tipo: paymentMethod, instantaneo: true, vencimento: payload.data };
@@ -218,5 +294,12 @@ export function createDespesasController({
     showToast("Despesa excluída com sucesso.", "success");
   }
 
-  return { bindExpenseForm, clearExpenseForm, deleteExpense, renderExpenseTable, toggleExpenseFields };
+  return {
+    bindExpenseForm,
+    clearExpenseForm,
+    deleteExpense,
+    renderExpenseTable,
+    startEmployeePayment,
+    toggleExpenseFields,
+  };
 }

@@ -30,14 +30,19 @@ export function renderDespesasTab() {
             </select>
           </div>
 
-          <div id="wrapExpenseOtherDescription" class="hidden-section">
-            <label class="block text-sm font-medium mb-2">Descrição do gasto</label>
-            <input id="expenseOtherDescription" type="text" class="field" placeholder="Obrigatório para categoria Outros" />
-          </div>
-
           <div>
             <label class="block text-sm font-medium mb-2">Descrição</label>
             <input id="expenseDescription" type="text" class="field" placeholder="Ex.: troca de óleo" required />
+          </div>
+
+          <div id="expenseEmployeeQuickTypes" class="expense-quick-types hidden-section xl:col-span-3" aria-live="polite">
+            <span class="text-sm font-medium">Escolha o tipo de lançamento</span>
+            <div class="expense-quick-types__actions">
+              <button type="button" class="btn-secondary" data-employee-payment-quick-type="advance">Vale / Adiantamento</button>
+              <button type="button" class="btn-secondary" data-employee-payment-quick-type="salary">Pagamento de salário</button>
+              <button type="button" class="btn-secondary" data-employee-payment-quick-type="daily">Diária de viagem</button>
+              <button type="button" class="btn-secondary" data-employee-payment-quick-type="other">Outro extra</button>
+            </div>
           </div>
 
           <div>
@@ -52,7 +57,7 @@ export function renderDespesasTab() {
             </select>
           </div>
 
-          <div>
+          <div id="wrapExpenseEmployee" class="hidden-section">
             <label class="block text-sm font-medium mb-2">Funcionário</label>
             <select id="expenseEmployee" class="field">
               <option value="">Selecione</option>
@@ -62,11 +67,11 @@ export function renderDespesasTab() {
           <div id="wrapExpenseEmployeePaymentType" class="hidden-section">
             <label class="block text-sm font-medium mb-2">Tipo de pagamento do funcionário</label>
             <select id="expenseEmployeePaymentType" class="field">
-              <option value="">Não classificado</option>
+              <option value="">Selecione</option>
               <option value="advance">Vale / Adiantamento</option>
               <option value="salary">Pagamento de salário</option>
               <option value="daily">Diária de viagem</option>
-              <option value="other">Outro pagamento ao funcionário</option>
+              <option value="other">Outro extra</option>
             </select>
           </div>
 

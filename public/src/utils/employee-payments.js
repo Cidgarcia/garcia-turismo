@@ -2,11 +2,37 @@ export const EMPLOYEE_PAYMENT_TYPES = Object.freeze({
   advance: "Vale / Adiantamento",
   salary: "Pagamento de salário",
   daily: "Diária de viagem",
-  other: "Outro pagamento ao funcionário",
+  other: "Outro extra",
+});
+
+export const EMPLOYEE_PAYMENT_CATEGORIES = Object.freeze({
+  salary: "salarios_adiantamentos",
+  extras: "viagens_extras",
+});
+
+const CATEGORY_PAYMENT_TYPES = Object.freeze({
+  [EMPLOYEE_PAYMENT_CATEGORIES.salary]: ["advance", "salary"],
+  [EMPLOYEE_PAYMENT_CATEGORIES.extras]: ["daily", "other"],
 });
 
 export function getEmployeePaymentTypeLabel(type) {
   return EMPLOYEE_PAYMENT_TYPES[type] || "Não classificado";
+}
+
+export function isEmployeePaymentCategory(category) {
+  return Object.hasOwn(CATEGORY_PAYMENT_TYPES, category);
+}
+
+export function getAllowedEmployeePaymentTypes(category) {
+  return CATEGORY_PAYMENT_TYPES[category] || [];
+}
+
+export function getEmployeePaymentCategory(type) {
+  return Object.entries(CATEGORY_PAYMENT_TYPES).find(([, types]) => types.includes(type))?.[0] || "";
+}
+
+export function isValidEmployeePaymentCombination(category, type) {
+  return getAllowedEmployeePaymentTypes(category).includes(type);
 }
 
 export function getExpenseEmployeeId(expense = {}) {
@@ -63,6 +89,7 @@ export function buildEmployeeMonthlyPayment(employee = {}, expenses = [], compet
   const salaryPaid = sumPaidByType(["advance", "salary"]);
   const dailyTotal = sumPaidByType(["daily"]);
   const otherPaymentsTotal = sumPaidByType(["other"]);
+  const extrasTotal = dailyTotal + otherPaymentsTotal;
   const salaryRemaining = Math.max(plannedSalary - salaryPaid, 0);
   const salaryExtraPaid = Math.max(salaryPaid - plannedSalary, 0);
   const salaryProgressPercent = plannedSalary > 0
@@ -78,9 +105,13 @@ export function buildEmployeeMonthlyPayment(employee = {}, expenses = [], compet
     salaryProgressPercent,
     dailyTotal,
     otherPaymentsTotal,
-    totalReceived: salaryPaid + dailyTotal + otherPaymentsTotal,
+    extrasTotal,
+    totalReceived: salaryPaid + extrasTotal,
     scheduledTotal: scheduledRows.reduce((total, row) => total + row.value, 0),
     scheduledCount: scheduledRows.length,
+    salaryRows: rows.filter((row) => ["advance", "salary"].includes(row.employeePaymentType)),
+    extraRows: rows.filter((row) => ["daily", "other"].includes(row.employeePaymentType)),
+    unclassifiedRows: rows.filter((row) => !row.employeePaymentType),
     rows,
   };
 }

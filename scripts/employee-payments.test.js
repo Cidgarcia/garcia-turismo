@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildEmployeeMonthlyPayment } from "../public/src/utils/employee-payments.js";
+import {
+  buildEmployeeMonthlyPayment,
+  getEmployeePaymentCategory,
+  isValidEmployeePaymentCombination,
+} from "../public/src/utils/employee-payments.js";
 
 const employee = { id: "employee-1", salarioBase: 2500 };
 const payment = (overrides = {}) => ({
@@ -31,6 +35,21 @@ test("separa diária do saldo salarial e a inclui no total recebido", () => {
   assert.equal(result.salaryRemaining, 1500);
   assert.equal(result.dailyTotal, 600);
   assert.equal(result.totalReceived, 1600);
+});
+
+test("calcula salario, extras e ganho total do mes sem misturar categorias", () => {
+  const result = buildEmployeeMonthlyPayment(
+    { id: "employee-1", salarioBase: 3200 },
+    [
+      payment({ valor: 200, employeePaymentType: "advance" }),
+      payment({ valor: 600, employeePaymentType: "daily" }),
+    ],
+    "2026-08",
+  );
+  assert.equal(result.salaryPaid, 200);
+  assert.equal(result.salaryRemaining, 3000);
+  assert.equal(result.extrasTotal, 600);
+  assert.equal(result.totalReceived, 800);
 });
 
 test("marca salário concluído quando o planejado foi pago", () => {
@@ -84,4 +103,13 @@ test("mantém despesa antiga visível sem classificá-la como salário", () => {
   assert.equal(result.rows.length, 1);
   assert.equal(result.salaryPaid, 0);
   assert.equal(result.totalReceived, 0);
+});
+
+test("limita os tipos de pagamento a categoria correspondente", () => {
+  assert.equal(getEmployeePaymentCategory("advance"), "salarios_adiantamentos");
+  assert.equal(getEmployeePaymentCategory("daily"), "viagens_extras");
+  assert.equal(isValidEmployeePaymentCombination("salarios_adiantamentos", "salary"), true);
+  assert.equal(isValidEmployeePaymentCombination("salarios_adiantamentos", "daily"), false);
+  assert.equal(isValidEmployeePaymentCombination("viagens_extras", "other"), true);
+  assert.equal(isValidEmployeePaymentCombination("viagens_extras", "advance"), false);
 });

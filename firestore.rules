@@ -133,6 +133,16 @@ service cloud.firestore {
         && data.funcionarioId == data.employeeId;
     }
 
+    function validEmployeePaymentCategory(data) {
+      return (
+        data.categoria == 'salarios_adiantamentos'
+        && data.employeePaymentType in ['advance', 'salary']
+      ) || (
+        data.categoria == 'viagens_extras'
+        && data.employeePaymentType in ['daily', 'other']
+      );
+    }
+
     function validEmployeePayment(data) {
       return (
         !('employeePaymentType' in data)
@@ -144,12 +154,12 @@ service cloud.firestore {
         && data.funcionarioId == data.employeeId
         && exists(/databases/$(database)/documents/employees/$(data.employeeId))
         && get(/databases/$(database)/documents/employees/$(data.employeeId)).data.companyId == currentUser().companyId
-        && data.employeePaymentType in ['advance', 'salary', 'daily', 'other']
+        && validEmployeePaymentCategory(data)
         && data.competenceMonth is string
         && data.competenceMonth.matches('^\\d{4}-(0[1-9]|1[0-2])$')
         && optionalString(data, 'tripId', 160)
         && (!('tripId' in data) || (
-          data.employeePaymentType == 'daily'
+          data.categoria == 'viagens_extras'
           && exists(/databases/$(database)/documents/trips/$(data.tripId))
           && get(/databases/$(database)/documents/trips/$(data.tripId)).data.companyId == currentUser().companyId
         ))

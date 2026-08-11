@@ -62,7 +62,13 @@ const despesasController = createDespesasController({
   saveFirestoreRecord,
   showToast,
 });
-const employeePaymentsController = createEmployeePaymentsController({ state });
+const employeePaymentsController = createEmployeePaymentsController({
+  state,
+  onRenderAll: () => renderAll(),
+  onStartEmployeePayment: (options) => despesasController.startEmployeePayment(options),
+  saveFirestoreRecord,
+  showToast,
+});
 const abastecimentosController = createAbastecimentosController({
   state,
   getVehicleName,
