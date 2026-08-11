@@ -101,7 +101,9 @@ export function createDespesasController({
     const typeInput = $("#expenseEmployeePaymentType");
     const employeeInput = $("#expenseEmployee");
     const competenceInput = $("#expenseCompetenceMonth");
+    const vehicleInput = $("#expenseVehicle");
 
+    $("#wrapExpenseVehicle").classList.toggle("hidden-section", isEmployeeFlow);
     $("#wrapExpenseEmployee").classList.toggle("hidden-section", !isEmployeeFlow);
     $("#wrapExpenseEmployeePaymentType").classList.toggle("hidden-section", !isEmployeeCategory);
     $("#wrapExpenseCompetenceMonth").classList.toggle("hidden-section", !isEmployeeFlow);
@@ -111,6 +113,7 @@ export function createDespesasController({
     employeeInput.required = isEmployeeCategory;
     typeInput.required = isEmployeeCategory;
     competenceInput.required = isEmployeeCategory;
+    if (isEmployeeFlow) vehicleInput.value = "";
 
     if (!isEmployeeFlow) {
       employeeInput.value = "";
@@ -210,7 +213,7 @@ export function createDespesasController({
       const payload = {
         id: uid(), data: $("#expenseDate").value, categoria: category,
         descricao: description, descricaoGasto: "",
-        valor: value, veiculoId: $("#expenseVehicle").value || "",
+        valor: value, veiculoId: isEmployeePayment ? "" : $("#expenseVehicle").value || "",
         funcionarioId: employeeId, paymentMethod, status,
         comprovanteUrl: $("#expenseProof").value || "", paymentDetails: {},
       };

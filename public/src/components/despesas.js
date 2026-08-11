@@ -50,7 +50,7 @@ export function renderDespesasTab() {
             <input id="expenseAmount" type="number" min="0.01" step="0.01" class="field" required />
           </div>
 
-          <div>
+          <div id="wrapExpenseVehicle">
             <label class="block text-sm font-medium mb-2">Veículo</label>
             <select id="expenseVehicle" class="field">
               <option value="">Selecione</option>

@@ -6,11 +6,12 @@
     "send-report": "node scripts/send-report.js",
     "backup:export": "node scripts/export-backup.js",
     "backup:restore": "node scripts/restore-backup.js",
-    "check": "node --check scripts/firebase-admin.js && node --check scripts/send-report.js && node --check scripts/export-backup.js && node --check scripts/restore-backup.js && node --check scripts/firestore-rules.test.js && node --check scripts/utils.test.js && node --check scripts/employee-payments.test.js && node --check public/src/app.js && node --check public/src/core/app-controller.js && node --check public/src/core/app-state.js && node --check public/src/core/abastecimentos-controller.js && node --check public/src/core/cadastros-controller.js && node --check public/src/core/controller-helpers.js && node --check public/src/core/dashboard-controller.js && node --check public/src/core/despesas-controller.js && node --check public/src/core/employee-payments-controller.js && node --check public/src/core/notifications.js && node --check public/src/core/payment-utils.js && node --check public/src/core/relatorios-controller.js && node --check public/src/core/trip-date-utils.js && node --check public/src/core/viagens-controller.js && node --check public/src/report/report.js && node --check public/src/report/report-data.js && node --check public/src/services/firebase-service.js && node --check public/src/utils/employee-payments.js && node --check public/src/utils/sanitize.js && node --check public/src/utils/validators.js && node --check public/src/utils/formatters.js",
+    "check": "node --check scripts/firebase-admin.js && node --check scripts/send-report.js && node --check scripts/export-backup.js && node --check scripts/restore-backup.js && node --check scripts/firestore-rules.test.js && node --check scripts/utils.test.js && node --check scripts/employee-payments.test.js && node --check scripts/database-service.test.js && node --check public/src/app.js && node --check public/src/core/app-controller.js && node --check public/src/core/app-state.js && node --check public/src/core/abastecimentos-controller.js && node --check public/src/core/cadastros-controller.js && node --check public/src/core/controller-helpers.js && node --check public/src/core/dashboard-controller.js && node --check public/src/core/despesas-controller.js && node --check public/src/core/employee-payments-controller.js && node --check public/src/core/notifications.js && node --check public/src/core/payment-utils.js && node --check public/src/core/relatorios-controller.js && node --check public/src/core/trip-date-utils.js && node --check public/src/core/viagens-controller.js && node --check public/src/report/report.js && node --check public/src/report/report-data.js && node --check public/src/services/database-service.js && node --check public/src/services/firebase-service.js && node --check public/src/utils/employee-payments.js && node --check public/src/utils/validators.js && node --check public/src/utils/formatters.js",
     "test:reports": "node --test scripts/send-report.test.js scripts/report-data.test.js",
-    "test:rules": "node --test scripts/firestore-rules.test.js",
+    "test:rules": "firebase emulators:exec --only firestore \"node --test scripts/firestore-rules.test.js\"",
     "test:utils": "node --test scripts/utils.test.js",
-    "test:employee-payments": "node --test scripts/employee-payments.test.js"
+    "test:employee-payments": "node --test scripts/employee-payments.test.js",
+    "test:services": "node --test scripts/database-service.test.js"
   },
   "dependencies": {
     "firebase": "^12.17.1",
@@ -23,6 +24,7 @@
     "node": ">=22"
   },
   "devDependencies": {
-    "@firebase/rules-unit-testing": "^5.0.1"
+    "@firebase/rules-unit-testing": "^5.0.1",
+    "firebase-tools": "^15.26.0"
   }
 }

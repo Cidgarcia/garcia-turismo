@@ -72,12 +72,31 @@ function employeePaymentExpense(uid, overrides = {}) {
   return {
     ...expense(uid),
     categoria: category,
+    veiculoId: "",
+    vehicleId: "",
     funcionarioId: "employee-seed",
     employeeId: "employee-seed",
     employeePaymentType: type,
     competenceMonth: "2026-08",
     ...overrides,
   };
+}
+
+function alexandreAdvance(uid, overrides = {}) {
+  return employeePaymentExpense(uid, {
+    data: "2026-08-10",
+    categoria: "salarios_adiantamentos",
+    descricao: "ADIANTAMENTO BRAGA",
+    valor: 80,
+    paymentMethod: "pix",
+    paymentDetails: { tipo: "pix", instantaneo: true, vencimento: "2026-08-10" },
+    status: "pago",
+    employeePaymentType: "advance",
+    competenceMonth: "2026-08",
+    veiculoId: "",
+    vehicleId: "",
+    ...overrides,
+  });
 }
 
 function trip(uid) {
@@ -128,7 +147,7 @@ function fueling(uid) {
 function employee(uid) {
   return {
     ...metadata(uid),
-    nome: "Funcionário de teste",
+    nome: "ALEXANDRE BRAGA",
     cargo: "Motorista",
     telefone: "11999999999",
     salarioBase: 3000,
@@ -194,6 +213,41 @@ test("gravação operacional e auditLog passam juntas no mesmo batch", async () 
     documentId: "vehicle-audited",
     companyId: COMPANY_ID,
     createdBy: "admin",
+    createdAt: serverTimestamp(),
+  });
+  await assertSucceeds(batch.commit());
+});
+
+test("admin grava o vale de R$ 80 do Alexandre junto com auditLog", async () => {
+  const admin = dbFor("admin");
+  const expenseId = "alexandre-advance-80";
+  const batch = writeBatch(admin);
+  batch.set(doc(admin, "expenses", expenseId), alexandreAdvance("admin"));
+  batch.set(doc(admin, "auditLogs", "audit-alexandre-advance-80"), {
+    action: "create",
+    collection: "expenses",
+    documentId: expenseId,
+    companyId: COMPANY_ID,
+    createdBy: "admin",
+    createdAt: serverTimestamp(),
+  });
+  await assertSucceeds(batch.commit());
+});
+
+test("dar baixa preserva metadados do pagamento e grava auditLog", async () => {
+  const finance = dbFor("finance");
+  const expenseId = "alexandre-pending-80";
+  const expenseRef = doc(finance, "expenses", expenseId);
+  await assertSucceeds(setDoc(expenseRef, alexandreAdvance("finance", { status: "a_pagar" })));
+
+  const batch = writeBatch(finance);
+  batch.update(expenseRef, { status: "pago", updatedAt: serverTimestamp() });
+  batch.set(doc(finance, "auditLogs", "audit-alexandre-pending-80"), {
+    action: "update",
+    collection: "expenses",
+    documentId: expenseId,
+    companyId: COMPANY_ID,
+    createdBy: "finance",
     createdAt: serverTimestamp(),
   });
   await assertSucceeds(batch.commit());

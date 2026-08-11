@@ -66,18 +66,28 @@ Os workflows mensais usam o Firebase Admin SDK exclusivamente no backend. O JSON
 | --- | --- |
 | `npm run check` | Valida a sintaxe dos scripts e módulos críticos. |
 | `npm run test:reports` | Executa testes dos relatórios. |
+| `npm run test:utils` | Executa testes dos utilitários ativos. |
+| `npm run test:employee-payments` | Executa testes do cálculo de pagamentos de funcionários. |
+| `npm run test:services` | Executa o teste de integração do adaptador de dados com Firebase mockado. |
+| `npm run test:rules` | Inicia o Firestore Emulator, executa os testes de regras e o encerra. |
 | `npm run send-report` | Gera os PDFs do período e os envia pelo Resend. |
 | `npm run backup:export` | Exporta documentos do Firestore, compacta e criptografa. |
 | `npm run backup:restore -- arquivo.json.enc --apply` | Restaura um backup após validação explícita. |
 
 O backup contém as coleções `users`, `vehicles`, `expenses`, `trips`, `fuelings`, `employees` e `cards`. Contas do Firebase Authentication, inclusive senhas, exigem procedimento administrativo separado e não fazem parte do backup.
 
-## Testes com Emulator
+## Como rodar os testes
 
-Para validar regras sem tocar na produção:
+Após instalar as dependências, execute cada validação:
 
 ```bash
-npx firebase-tools emulators:start --only auth,firestore --project garciaturismopnz
+npm install
+npm run check
+npm run test:reports
+npm run test:utils
+npm run test:employee-payments
+npm run test:services
+npm run test:rules
 ```
 
-Em seguida, teste login válido, login inválido, usuário inativo, permissões de cada perfil e os fluxos de criação, edição e exclusão. Antes de publicar, valide também em dois navegadores diferentes que os dados criados no Firestore persistem após recarregar a página.
+`firebase-tools` está declarado como dependência de desenvolvimento. O comando `npm run test:rules` inicia e encerra o Firestore Emulator automaticamente; não é necessário abrir outro terminal nem definir `FIRESTORE_EMULATOR_HOST` manualmente.

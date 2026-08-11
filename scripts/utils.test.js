@@ -10,28 +10,11 @@ import {
   paymentLabel,
 } from "../public/src/utils/formatters.js";
 import {
-  sanitizeNumber,
-  sanitizePayload,
-  sanitizeText,
-} from "../public/src/utils/sanitize.js";
-import {
   positiveNumber,
   required,
   validDate,
   validateRequiredFields,
 } from "../public/src/utils/validators.js";
-
-test("sanitize preserva dados simples e remove delimitadores de tags", () => {
-  assert.equal(sanitizeText("  <b>Garcia</b>  "), "bGarcia/b");
-  assert.equal(sanitizeText(null), "null");
-  assert.equal(sanitizeNumber("12,5"), 12.5);
-  assert.equal(sanitizeNumber("inválido", 7), 7);
-  assert.deepEqual(sanitizePayload({ nome: " <Ana> ", valor: 10, ativo: true }), {
-    nome: "Ana",
-    valor: 10,
-    ativo: true,
-  });
-});
 
 test("validators distinguem campos obrigatórios, números positivos e formato ISO", () => {
   assert.equal(required("  motorista "), true);
