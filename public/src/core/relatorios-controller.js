@@ -7,6 +7,12 @@ import {
   paymentLabel,
   rowStatusBadge,
 } from "./controller-helpers.js";
+import {
+  filterFuelings,
+  getFuelingDate,
+  summarizeFuelings,
+  summarizeFuelingsByVehicle,
+} from "../utils/fueling-utils.js";
 
 export function createRelatoriosController({
   state,
@@ -85,6 +91,100 @@ export function createRelatoriosController({
         return okMonth && okVehicle && okEmployee;
       })
       .sort((a, b) => (b.data || "").localeCompare(a.data || ""));
+  }
+
+  function fuelNumber(value, maximumFractionDigits = 2) {
+    return Number(value || 0).toLocaleString("pt-BR", { maximumFractionDigits });
+  }
+
+  function getFuelingReportRows() {
+    return filterFuelings({
+      fuelings: state.data.fuelings,
+      startDate: $("#fuelReportStart").value,
+      endDate: $("#fuelReportEnd").value,
+      vehicleId: $("#fuelReportVehicle").value,
+    });
+  }
+
+  function renderFuelingVehicleSummary(rows, selectedVehicleId) {
+    const summaryElement = $("#fuelReportVehicleSummary");
+    if (selectedVehicleId || !rows.length) {
+      summaryElement.innerHTML = "";
+      return;
+    }
+
+    const summaries = summarizeFuelingsByVehicle(rows);
+    summaryElement.innerHTML = `
+      <div class="space-y-3">
+        <h3 class="text-lg font-semibold">Resumo por veículo</h3>
+        <div class="table-wrap text-[12px] md:text-[13px]">
+          <table>
+            <thead>
+              <tr>
+                <th>Veículo</th>
+                <th>Abastecimentos</th>
+                <th>Litros</th>
+                <th>Valor gasto</th>
+                <th>Distância</th>
+                <th>Média km/L</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${summaries.map((item) => `
+                <tr>
+                  <td>${escapeHtml(getVehicleName(item.vehicleId))}</td>
+                  <td>${item.count}</td>
+                  <td>${fuelNumber(item.liters)} L</td>
+                  <td>${currency(item.total)}</td>
+                  <td>${fuelNumber(item.distance, 0)} km</td>
+                  <td>${fuelNumber(item.averageConsumption)} km/l</td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  function renderFuelingReport() {
+    const rows = getFuelingReportRows();
+    const summary = summarizeFuelings(rows);
+    const startDate = $("#fuelReportStart").value;
+    const endDate = $("#fuelReportEnd").value;
+    const vehicleId = $("#fuelReportVehicle").value;
+    const periodLabel = startDate && endDate
+      ? `${formatDate(startDate)} até ${formatDate(endDate)}`
+      : startDate
+        ? `A partir de ${formatDate(startDate)}`
+        : endDate
+          ? `Até ${formatDate(endDate)}`
+          : "Todos os registros";
+
+    $("#fuelReportPeriod").textContent = periodLabel;
+    $("#fuelReportVehicleLabel").textContent = vehicleId ? getVehicleName(vehicleId) : "Todos os veículos";
+    $("#fuelReportCount").textContent = summary.count;
+    $("#fuelReportLiters").textContent = `${fuelNumber(summary.liters)} L`;
+    $("#fuelReportTotal").textContent = currency(summary.total);
+    $("#fuelReportDistance").textContent = `${fuelNumber(summary.distance, 0)} km`;
+    $("#fuelReportPrice").textContent = currency(summary.averagePricePerLiter);
+    $("#fuelReportAverage").textContent = `${fuelNumber(summary.averageConsumption)} km/l`;
+    $("#fuelReportTable").innerHTML =
+      rows.map((item) => `
+        <tr>
+          <td>${formatDate(getFuelingDate(item))}</td>
+          <td>${escapeHtml(getVehicleName(item.veiculoId || item.vehicleId))}</td>
+          <td>${fuelNumber(item.ultimoKm, 0)}</td>
+          <td>${fuelNumber(item.kmAtual, 0)}</td>
+          <td>${fuelNumber(item.distanciaPercorrida, 0)} km</td>
+          <td>${fuelNumber(item.litros)} L</td>
+          <td class="text-right">${currency(item.valorTotal)}</td>
+          <td class="text-right">${currency(item.precoLitro)}</td>
+          <td>${fuelNumber(item.mediaKmLitro)} km/l</td>
+          <td>${escapeHtml(paymentLabel(item.paymentMethod))}</td>
+          <td>${rowStatusBadge(item.status === "pago" ? "Pago" : "A pagar")}</td>
+        </tr>`).join("") ||
+      '<tr><td colspan="11" class="text-center muted py-6">Nenhum abastecimento encontrado no período.</td></tr>';
+
+    renderFuelingVehicleSummary(rows, vehicleId);
   }
 
   function reportActions(item) {
@@ -281,6 +381,73 @@ export function createRelatoriosController({
   function bindReports() {
     $("#applyFiltersBtn").addEventListener("click", renderReport);
     $("#exportPdfBtn").addEventListener("click", exportPdf);
+    $("#applyFuelReportFiltersBtn").addEventListener("click", () => {
+      const startDate = $("#fuelReportStart").value;
+      const endDate = $("#fuelReportEnd").value;
+      if (startDate && endDate && startDate > endDate) {
+        showToast("A data inicial não pode ser posterior à data final.", "error");
+        return;
+      }
+      renderFuelingReport();
+    });
+    $("#exportFuelReportPdfBtn").addEventListener("click", exportFuelingPdf);
+  }
+
+  async function exportFuelingPdf() {
+    const startDate = $("#fuelReportStart").value;
+    const endDate = $("#fuelReportEnd").value;
+    if (startDate && endDate && startDate > endDate) {
+      showToast("A data inicial não pode ser posterior à data final.", "error");
+      return;
+    }
+
+    renderFuelingReport();
+    const source = $("#fuelingReportArea").cloneNode(true);
+    source.classList.add("report-document");
+    source.querySelectorAll(".no-print").forEach((element) => element.remove());
+    const header = document.createElement("div");
+    header.className = "report-export-header";
+    const logo = document.createElement("img");
+    logo.src = logoPath;
+    logo.alt = "Garcia Turismo";
+    const meta = document.createElement("div");
+    meta.className = "report-export-header__meta";
+    const title = document.createElement("div");
+    title.textContent = "Garcia Turismo — Relatório de Abastecimentos";
+    const issuedAt = document.createElement("div");
+    issuedAt.textContent = `Emitido em ${new Date().toLocaleString("pt-BR")}`;
+    meta.append(title, issuedAt);
+    header.append(logo, meta);
+    source.prepend(header);
+
+    const wrap = document.createElement("div");
+    wrap.className = "report-export-shell";
+    wrap.appendChild(source);
+    document.body.appendChild(wrap);
+    try {
+      if (typeof html2pdf !== "undefined") {
+        await html2pdf().set({
+          margin: 0.28,
+          filename: `relatorio_abastecimentos_${today()}.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+          jsPDF: { unit: "in", format: "a4", orientation: "landscape" },
+          pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+        }).from(source).save();
+      } else {
+        const printWin = window.open("", "_blank");
+        printWin.document.write(`<html><head><title>Relatório de Abastecimentos</title></head><body>${source.outerHTML}</body></html>`);
+        printWin.document.close();
+        printWin.focus();
+        printWin.print();
+      }
+      showToast("PDF de abastecimentos gerado com sucesso.", "success");
+    } catch (error) {
+      console.error(error);
+      showToast("Erro ao gerar o relatório de abastecimentos.", "error");
+    } finally {
+      document.body.removeChild(wrap);
+    }
   }
 
   async function exportPdf() {
@@ -333,6 +500,7 @@ export function createRelatoriosController({
     markPendingAsPaid,
     renderPending,
     renderReport,
+    renderFuelingReport,
     undoReportPayment,
   };
 }

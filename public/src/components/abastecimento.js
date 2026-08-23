@@ -9,6 +9,13 @@ export function renderAbastecimentoTab() {
           </div>
 
           <form id="fuelForm" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <input id="fuelRecordId" type="hidden" />
+
+            <div>
+              <label class="block text-sm font-medium mb-2">Data do abastecimento</label>
+              <input id="fuelDate" type="date" class="field" required />
+            </div>
+
             <div>
               <label class="block text-sm font-medium mb-2">Veículo</label>
               <select id="fuelVehicle" class="field" required>
@@ -18,7 +25,8 @@ export function renderAbastecimentoTab() {
 
             <div>
               <label class="block text-sm font-medium mb-2">Último KM</label>
-              <input id="fuelLastKm" type="number" class="field bg-slate-100" readonly />
+              <input id="fuelLastKm" type="number" min="0" class="field bg-slate-100" required />
+              <p id="fuelLastKmHint" class="muted text-xs mt-1">Selecione a data e o veículo para calcular.</p>
             </div>
 
             <div>
@@ -114,9 +122,12 @@ export function renderAbastecimentoTab() {
               </div>
             </div>
 
-            <div class="md:col-span-2 xl:col-span-3 flex justify-end">
+            <div class="md:col-span-2 xl:col-span-3 flex flex-wrap justify-end gap-3">
+              <button id="cancelFuelEditBtn" type="button" class="hidden-section rounded-2xl px-5 py-4 btn-secondary font-semibold">
+                Cancelar edição
+              </button>
               <button type="submit" class="rounded-2xl px-5 py-4 btn-primary font-semibold">
-                Salvar abastecimento
+                <span id="fuelSubmitLabel">Salvar abastecimento</span>
               </button>
             </div>
           </form>

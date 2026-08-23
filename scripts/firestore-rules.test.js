@@ -129,6 +129,7 @@ function fueling(uid) {
   return {
     ...metadata(uid),
     data: "2026-08-02",
+    fuelingDate: "2026-08-02",
     veiculoId: "vehicle-seed",
     vehicleId: "vehicle-seed",
     ultimoKm: 100,
@@ -201,6 +202,19 @@ test("admin executa CRUD de vehicles, expenses, trips, fuelings e employees", as
     await assertSucceeds(updateDoc(reference, { ...update, updatedAt: serverTimestamp() }));
     await assertSucceeds(deleteDoc(reference));
   }
+});
+
+test("abastecimento legado sem fuelingDate continua atualizável", async () => {
+  const admin = dbFor("admin");
+  const legacyFueling = fueling("admin");
+  delete legacyFueling.fuelingDate;
+  const reference = doc(admin, "fuelings", "fuel-legacy");
+
+  await assertSucceeds(setDoc(reference, legacyFueling));
+  await assertSucceeds(updateDoc(reference, {
+    status: "a_pagar",
+    updatedAt: serverTimestamp(),
+  }));
 });
 
 test("gravação operacional e auditLog passam juntas no mesmo batch", async () => {
@@ -384,5 +398,9 @@ test("admin não consegue burlar metadados, schema ou empresa", async () => {
   await assertFails(setDoc(doc(admin, "vehicles", "vehicle-other-company"), {
     ...vehicle("admin", "other-company"),
     companyId: "outra-empresa",
+  }));
+  await assertFails(setDoc(doc(admin, "fuelings", "fuel-invalid-date"), {
+    ...fueling("admin"),
+    fuelingDate: "02/08/2026",
   }));
 });

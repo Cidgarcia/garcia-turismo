@@ -194,11 +194,12 @@ service cloud.firestore {
     function validFueling(data) {
       return hasOnly(data, [
         'companyId', 'createdAt', 'updatedAt', 'createdBy',
-        'data', 'veiculoId', 'vehicleId', 'ultimoKm', 'kmAtual', 'litros',
+        'data', 'fuelingDate', 'veiculoId', 'vehicleId', 'ultimoKm', 'kmAtual', 'litros',
         'valorTotal', 'distanciaPercorrida', 'mediaKmLitro', 'precoLitro',
         'paymentMethod', 'status', 'paymentDetails', 'cardId', 'buyerId', 'installments'
       ])
         && isoDate(data, 'data')
+        && (!('fuelingDate' in data) || (isoDate(data, 'fuelingDate') && data.fuelingDate == data.data))
         && requiredString(data, 'veiculoId', 160)
         && data.vehicleId == data.veiculoId
         && nonNegativeNumber(data, 'ultimoKm', 5000000)

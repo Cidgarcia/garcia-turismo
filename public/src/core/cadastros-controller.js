@@ -32,6 +32,7 @@ export function createCadastrosController({
     $("#expenseVehicle").innerHTML = `<option value="">Selecione</option>${vehicleOptions}`;
     $("#fuelVehicle").innerHTML = `<option value="">Selecione</option>${vehicleOptions}`;
     $("#reportVehicle").innerHTML = `<option value="">Todos</option>${vehicleOptions}`;
+    $("#fuelReportVehicle").innerHTML = `<option value="">Todos os veículos</option>${vehicleOptions}`;
     if ($("#tripVehicleIds")) {
       $("#tripVehicleIds").innerHTML =
         vehicleOptions ||

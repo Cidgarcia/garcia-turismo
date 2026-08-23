@@ -158,6 +158,7 @@ function renderAll() {
   employeePaymentsController.renderEmployeePayments();
   relatoriosController.renderPending();
   relatoriosController.renderReport();
+  relatoriosController.renderFuelingReport();
   viagensController.renderTripPreview();
 }
 
@@ -274,12 +275,13 @@ function bindAuthState() {
 function initDefaults() {
   $("#expenseDate").value = today();
   $("#reportMonth").value = monthNow();
+  $("#fuelReportStart").value = `${monthNow()}-01`;
+  $("#fuelReportEnd").value = today();
   $("#expenseInstallments").value = "1";
-  $("#fuelInstallments").value = "1";
   state.ui.tripMonth = monthNow();
   state.ui.tripSelectedDate = today();
   viagensController.clearTripForm();
-  abastecimentosController.calculateFuelPreview();
+  abastecimentosController.clearFuelForm();
 }
 
 async function init() {
