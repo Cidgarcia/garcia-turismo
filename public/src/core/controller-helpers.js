@@ -58,15 +58,17 @@ export function paymentLabel(value) {
 
 export function getVehicleBaseName(vehicle) {
   if (!vehicle) return "-";
+  if (vehicle.nome) return `${vehicle.nome} (${vehicle.modelo})`;
   return `${vehicle.modelo} ${vehicle.ano} - ${vehicle.cor}`;
 }
 
 export function getVehicleDisplayName(vehicle) {
   if (!vehicle) return "-";
-  const seats = Number(vehicle.lugares || 0);
+  const seats = Number(vehicle.capacidade || vehicle.lugares || 0);
+  const typeLabel = vehicle.tipo ? ` [${vehicle.tipo.toUpperCase()}]` : "";
   return seats > 0
-    ? `${getVehicleBaseName(vehicle)} (${seats} lugares)`
-    : getVehicleBaseName(vehicle);
+    ? `${getVehicleBaseName(vehicle)}${typeLabel} (${seats} lugares)`
+    : `${getVehicleBaseName(vehicle)}${typeLabel}`;
 }
 
 export function createStateLookups(state) {

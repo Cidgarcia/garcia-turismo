@@ -91,7 +91,8 @@ service cloud.firestore {
     function validVehicle(data) {
       return hasOnly(data, [
         'companyId', 'createdAt', 'updatedAt', 'createdBy',
-        'modelo', 'ano', 'cor', 'placa', 'kmAtual', 'lugares', 'status'
+        'modelo', 'ano', 'cor', 'placa', 'kmAtual', 'lugares', 'status',
+        'nome', 'tipo', 'capacidade', 'layout', 'consumoKmPorLitro', 'custoManutencaoKm'
       ])
         && requiredString(data, 'modelo', 120)
         && data.ano is number && data.ano >= 1900 && data.ano <= 2100
@@ -99,7 +100,13 @@ service cloud.firestore {
         && optionalString(data, 'placa', 16)
         && nonNegativeNumber(data, 'kmAtual', 5000000)
         && data.lugares is number && data.lugares >= 1 && data.lugares <= 100
-        && data.status in ['ativo', 'inativo'];
+        && data.status in ['ativo', 'inativo']
+        && optionalString(data, 'nome', 120)
+        && (!('tipo' in data) || data.tipo in ['onibus', 'microonibus', 'van'])
+        && (!('capacidade' in data) || (data.capacidade is number && data.capacidade >= 1 && data.capacidade <= 100))
+        && optionalString(data, 'layout', 60)
+        && (!('consumoKmPorLitro' in data) || nonNegativeNumber(data, 'consumoKmPorLitro', 100))
+        && (!('custoManutencaoKm' in data) || nonNegativeNumber(data, 'custoManutencaoKm', 1000));
     }
 
     function validEmployee(data) {

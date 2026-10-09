@@ -38,10 +38,12 @@ export function renderCadastrosTab() {
             <table>
               <thead>
                 <tr>
-                  <th>Modelo</th>
-                  <th>Ano</th>
-                  <th>Cor</th>
-                  <th>KM</th>
+                  <th>Veículo / Nome</th>
+                  <th>Tipo</th>
+                  <th>Lugares</th>
+                  <th>Consumo</th>
+                  <th>Manut./km</th>
+                  <th>KM Atual</th>
                   <th></th>
                 </tr>
               </thead>
