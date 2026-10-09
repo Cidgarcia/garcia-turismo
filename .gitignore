@@ -12,3 +12,4 @@ test-results/
 .codex/
 skills-lock.json
 firestore.rules.backup
+*.pdf

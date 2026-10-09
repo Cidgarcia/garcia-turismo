@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Planilha de Custos &amp; Lucro (Uso Interno) — Garcia Turismo</title>
+    <link rel="stylesheet" href="./styles/variables.css" />
+    <link rel="stylesheet" href="./styles/main.css" />
+    <link rel="stylesheet" href="./styles/dashboard.css" />
+    <style>
+      @page {
+        size: A4;
+        margin: 10mm 12mm;
+      }
+      body {
+        background: #f1f5f9;
+        color: #0f172a;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .internal-page {
+        max-width: 860px;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 32px 36px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        position: relative;
+        overflow: hidden;
+      }
+      .watermark-banner {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 2px dashed #ef4444;
+        border-radius: 10px;
+        padding: 8px 16px;
+        font-weight: 800;
+        font-size: 13px;
+        text-align: center;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        margin-bottom: 20px;
+      }
+      .header-wrap {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 16px;
+        margin-bottom: 20px;
+      }
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+      .kpi-card {
+        padding: 14px 16px;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+      }
+      .kpi-card .kpi-label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #64748b;
+        margin: 0 0 4px 0;
+      }
+      .kpi-card .kpi-value {
+        font-size: 20px;
+        font-weight: 800;
+        margin: 0;
+      }
+      .table-costs {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        margin-bottom: 24px;
+      }
+      .table-costs th {
+        background: #f1f5f9;
+        text-align: left;
+        padding: 10px 14px;
+        font-weight: 700;
+        color: #334155;
+        border-bottom: 2px solid #cbd5e1;
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+      }
+      .table-costs td {
+        padding: 10px 14px;
+        border-bottom: 1px solid #e2e8f0;
+        color: #1e293b;
+      }
+      .table-costs tr:last-child td {
+        border-bottom: 2px solid #0f172a;
+        font-weight: 800;
+        background: #f8fafc;
+      }
+      .badge-fair {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        font-weight: 700;
+        font-size: 12px;
+      }
+      .badge-green { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+      .badge-yellow { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+      .badge-red { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+      .diagnostics-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        background: #f8fafc;
+        border-radius: 14px;
+        padding: 16px;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 24px;
+        font-size: 12px;
+      }
+      .no-print-bar {
+        max-width: 860px;
+        margin: 0 auto 16px auto;
+        display: flex;
+        justify-content: flex-end;
+      }
+      @media print {
+        body { background: #ffffff; padding: 0; }
+        .internal-page { box-shadow: none; padding: 0; max-width: 100%; }
+        .no-print-bar { display: none !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="no-print-bar">
+      <button onclick="window.print()" class="rounded-2xl px-5 py-2.5 btn-primary font-semibold text-sm">
+        🖨️ Imprimir Planilha Interna
+      </button>
+    </div>
+
+    <main class="internal-page" id="internalDocRoot">
+      <p style="text-align: center; padding: 40px; color: #64748b;">Carregando relatório interno...</p>
+    </main>
+
+    <script type="module">
+      import { calculateOrcamento, formatDateBR } from "./src/utils/orcamento-calculator.js";
+
+      window.__GARCIA_PDF_READY__ = false;
+
+      function money(val = 0) {
+        return Number(val || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+      }
+
+      function escapeHtml(val = "") {
+        return String(val || "").replace(/[&<>'"]/g, (c) => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
+        })[c]);
+      }
+
+      function loadData() {
+        if (window.__GARCIA_ORCAMENTO__) {
+          return window.__GARCIA_ORCAMENTO__;
+        }
+        const params = new URLSearchParams(window.location.search);
+        const orcId = params.get("id");
+        if (orcId) {
+          try {
+            const rawSession = localStorage.getItem("garcia_turismo_state_backup");
+            if (rawSession) {
+              const state = JSON.parse(rawSession);
+              const found = (state?.data?.orcamentos || []).find((o) => o.id === orcId);
+              if (found) {
+                const veiculo = (state?.data?.vehicles || []).find((v) => v.id === found.veiculoId);
+                return { ...found, veiculo };
+              }
+            }
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+        return null;
+      }
+
+      function render() {
+        const doc = loadData();
+        const root = document.getElementById("internalDocRoot");
+
+        if (!doc) {
+          root.innerHTML = `
+            <div style="text-align:center; padding: 40px;">
+              <h2 style="color: #dc2626;">Orçamento não encontrado</h2>
+              <p style="color: #64748b;">Nenhum dado encontrado para gerar a planilha interna.</p>
+            </div>
+          `;
+          window.__GARCIA_PDF_READY__ = true;
+          return;
+        }
+
+        const calc = calculateOrcamento({
+          valorCobrado: doc.valorCobrado || 0,
+          totalKm: doc.distanciaTotalKm || 0,
+          capacidadePassageiros: doc.numeroPassageiros || doc.veiculo?.capacidade || 46,
+          consumoKmPerLiter: doc.custoCombustivelConsumo || doc.veiculo?.consumoKmPorLitro || 3.5,
+          fuelPricePerLiter: doc.custoCombustivelLitro || 6.29,
+          maintenanceCostPerKm: doc.veiculo?.custoManutencaoKm || 0,
+          motorista1Valor: doc.custos?.motorista1Valor || 0,
+          motorista2Valor: doc.custos?.motorista2Valor || 0,
+          hospedagem: doc.custos?.hospedagem || 0,
+          antt: doc.custos?.antt || 0,
+          agua: doc.custos?.agua || 0,
+          stilmill: doc.custos?.stilmill || 0,
+          pedagios: doc.custos?.pedagios || 0,
+          outrosCustos: doc.outrosCustos || [],
+          aliquotaImpostoPercent: doc.aliquotaImpostoPercent ?? 6.0,
+          metaMargemPercent: 50,
+        });
+
+        const badgeClass =
+          calc.fairPrice.status === "verde"
+            ? "badge-green"
+            : calc.fairPrice.status === "amarelo"
+            ? "badge-yellow"
+            : "badge-red";
+
+        const outrosLinhas = (doc.outrosCustos || [])
+          .map(
+            (item) => `
+            <tr>
+              <td>Outro: ${escapeHtml(item.nome || "Custo Extra")}</td>
+              <td>${escapeHtml(item.observacao || "Adicional lançado")}</td>
+              <td style="text-align: right; font-weight: 600;">${money(item.valor || 0)}</td>
+            </tr>
+          `,
+          )
+          .join("");
+
+        root.innerHTML = `
+          <div class="watermark-banner">
+            🔒 USO EXCLUSIVO INTERNO — CONFIDENCIAL / PROIBIDO COMPARTILHAR COM CLIENTES
+          </div>
+
+          <header class="header-wrap">
+            <div>
+              <h1 style="font-size: 22px; margin: 0; font-weight: 800; color: #0f172a;">
+                Planilha de Custos &amp; Diagnóstico de Margem
+              </h1>
+              <p style="font-size: 13px; color: #64748b; margin: 4px 0 0 0;">
+                Orçamento <strong>#${escapeHtml(doc.numeroSequencial || "-")}</strong> · Versão ${doc.versao || 1} · Emissão: ${formatDateBR(doc.dataEmissao)}
+              </p>
+            </div>
+            <div style="text-align: right;">
+              <span class="badge-fair ${badgeClass}">${calc.fairPrice.label} (${calc.margemPercent.toFixed(1)}%)</span>
+              <p style="font-size: 12px; color: #64748b; margin: 6px 0 0 0;">
+                Cliente: <strong>${escapeHtml(doc.cliente || "-")}</strong>
+              </p>
+            </div>
+          </header>
+
+          <!-- KPIs Financeiros Principais -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <p class="kpi-label">Valor Cobrado</p>
+              <p class="kpi-value" style="color: #0284c7;">${money(calc.valorCobrado)}</p>
+            </div>
+            <div class="kpi-card">
+              <p class="kpi-label">Custo Total</p>
+              <p class="kpi-value" style="color: #475569;">${money(calc.custoTotal)}</p>
+            </div>
+            <div class="kpi-card">
+              <p class="kpi-label">Lucro Líquido</p>
+              <p class="kpi-value" style="color: ${calc.lucro >= 0 ? "#16a34a" : "#dc2626"};">${money(calc.lucro)}</p>
+            </div>
+            <div class="kpi-card">
+              <p class="kpi-label">Margem Real</p>
+              <p class="kpi-value" style="color: ${calc.lucro >= 0 ? "#16a34a" : "#dc2626"};">${calc.margemPercent.toFixed(1)}%</p>
+            </div>
+          </div>
+
+          <!-- Tabela Completa de Custos Operacionais -->
+          <h3 style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: #0284c7; margin-bottom: 8px;">
+            Planilha Detalhada de Custos
+          </h3>
+          <table class="table-costs">
+            <thead>
+              <tr>
+                <th>Item de Custo</th>
+                <th>Memória de Cálculo / Observação</th>
+                <th style="text-align: right;">Valor (R$)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Combustível (Diesel S10)</td>
+                <td>${doc.distanciaTotalKm || 0} km ÷ ${calc.custosDetalhados.combustivelCents > 0 ? (doc.custoCombustivelConsumo || 3.5) : "-"} km/l × ${money(doc.custoCombustivelLitro || 6.29)}/L</td>
+                <td style="text-align: right; font-weight: 600;">${money(calc.custosDetalhados.combustivelCents / 100)}</td>
+              </tr>
+              <tr>
+                <td>1º Motorista</td>
+                <td>Diária / valor fixado da viagem</td>
+                <td style="text-align: right; font-weight: 600;">${money(calc.custosDetalhados.motorista1Cents / 100)}</td>
+              </tr>
+              ${
+                calc.custosDetalhados.motorista2Cents > 0
+                  ? `<tr>
+                      <td>2º Motorista (Revezamento)</td>
+                      <td>Ativado para a escala de viagem</td>
+                      <td style="text-align: right; font-weight: 600;">${money(calc.custosDetalhados.motorista2Cents / 100)}</td>
+                    </tr>`
+                  : ""
+              }
+              <tr>
+                <td>Hospedagem (Hotel)</td>
+                <td>Estadia do(s) motorista(s)</td>
+                <td style="text-align: right; font-weight: 600;">${money(calc.custosDetalhados.hospedagemCents / 100)}</td>
+              </tr>
+              <tr>
+                <td>ANTT / Taxas</td>
+                <td>Licenças, taxas de embarque e autorizações</td>
+                <td style="text-align: right; font-weight: 600;">${money(calc.custosDetalhados.anttCents / 100)}</td>
+              </tr>
+              <tr>
+                <td>Água Mineral / Lanches</td>
+                <td>Suprimentos de bordo</td>
+                <td style="text-align: right; font-weight: 600;">${money(calc.custosDetalhados.aguaCents / 100)}</td>
+              </tr>
+              <tr>
+                <td>Stilmill</td>
+                <td>Custo operacional mapeado</td>
+                <td style="text-align: right; font-weight: 600;">${money(calc.custosDetalhados.stilmillCents / 100)}</td>
+              </tr>
+              <tr>
+                <td>Pedágios</td>
+                <td>Tarifas das praças de pedágio do trajeto</td>
+                <td style="text-align: right; font-weight: 600;">${money(calc.custosDetalhados.pedagiosCents / 100)}</td>
+              </tr>
+              <tr>
+                <td>Manutenção / Desgaste Veículo</td>
+                <td>${doc.distanciaTotalKm || 0} km × ${money(doc.veiculo?.custoManutencaoKm || 0)}/km (óleo, pneus, freios)</td>
+                <td style="text-align: right; font-weight: 600;">${money(calc.custosDetalhados.manutencaoCents / 100)}</td>
+              </tr>
+              <tr>
+                <td>Impostos sobre Faturamento</td>
+                <td>Alíquota de ${doc.aliquotaImpostoPercent ?? 6.0}% do Simples sobre a receita bruta</td>
+                <td style="text-align: right; font-weight: 600;">${money(calc.impostos)}</td>
+              </tr>
+              ${outrosLinhas}
+              <tr>
+                <td>TOTAL DOS CUSTOS</td>
+                <td>Soma de todos os custos diretos + tributos</td>
+                <td style="text-align: right; color: #dc2626; font-size: 15px;">${money(calc.custoTotal)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Diagnóstico de Preço Justo e Métricas de Eficiência -->
+          <h3 style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: #0284c7; margin-bottom: 8px;">
+            Diagnóstico Operacional &amp; Preço Justo
+          </h3>
+          <div class="diagnostics-grid">
+            <div>
+              <p style="color: #64748b; margin: 0 0 2px 0;">Mínimo Sugerido (Meta 50%):</p>
+              <p style="font-size: 16px; font-weight: 800; color: #d97706; margin: 0;">${money(calc.precoSugeridoMeta)}</p>
+            </div>
+            <div>
+              <p style="color: #64748b; margin: 0 0 2px 0;">Ponto de Equilíbrio:</p>
+              <p style="font-size: 16px; font-weight: 800; color: #1e293b; margin: 0;">${calc.pontoEquilibrioPoltronas} poltronas</p>
+              <span style="font-size: 10px; color: #64748b;">(Venda mínima necessária)</span>
+            </div>
+            <div>
+              <p style="color: #64748b; margin: 0 0 2px 0;">Preço por Poltrona:</p>
+              <p style="font-size: 16px; font-weight: 800; color: #0284c7; margin: 0;">${money(calc.precoPorPoltrona)}</p>
+            </div>
+            <div>
+              <p style="color: #64748b; margin: 0 0 2px 0;">Custo por KM:</p>
+              <p style="font-size: 14px; font-weight: 700; color: #334155; margin: 0;">${money(calc.custoPorKm)} / km</p>
+            </div>
+            <div>
+              <p style="color: #64748b; margin: 0 0 2px 0;">Receita por KM:</p>
+              <p style="font-size: 14px; font-weight: 700; color: #334155; margin: 0;">${money(calc.receitaPorKm)} / km</p>
+            </div>
+            <div>
+              <p style="color: #64748b; margin: 0 0 2px 0;">Lucro por KM:</p>
+              <p style="font-size: 14px; font-weight: 700; color: ${calc.lucroPorKm >= 0 ? "#16a34a" : "#dc2626"}; margin: 0;">${money(calc.lucroPorKm)} / km</p>
+            </div>
+          </div>
+
+          <div style="margin-top: 24px; padding-top: 14px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 11px; color: #64748b;">
+            <span>Garcia Turismo — Sistema de Gestão Financeira e Frotas</span>
+            <span>Documento gerado em ${new Date().toLocaleString("pt-BR")}</span>
+          </div>
+        `;
+
+        window.__GARCIA_PDF_READY__ = true;
+      }
+
+      window.addEventListener("DOMContentLoaded", render);
+    </script>
+  </body>
+</html>
