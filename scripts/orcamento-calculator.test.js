@@ -195,3 +195,4 @@ test("teste de expiração em 7 dias", () => {
   assert.equal(aprovado.isExpirado, false);
   assert.equal(aprovado.statusExibicao, "aprovado");
 });
+
