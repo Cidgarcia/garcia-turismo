@@ -12,7 +12,8 @@
     "test:utils": "node --test scripts/utils.test.js",
     "test:employee-payments": "node --test scripts/employee-payments.test.js",
     "test:services": "node --test scripts/database-service.test.js",
-    "test:fuelings": "node --test scripts/fueling-utils.test.js"
+    "test:fuelings": "node --test scripts/fueling-utils.test.js",
+    "test:orcamentos": "node --test scripts/orcamento-calculator.test.js"
   },
   "dependencies": {
     "firebase": "^12.17.1",
