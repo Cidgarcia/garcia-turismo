@@ -153,6 +153,7 @@ const employees = recordApi("employees");
 const cards = recordApi("cards", "card");
 const buyers = recordApi("cards", "buyer");
 const cardSchedules = recordApi("cards", "cardSchedule");
+const orcamentos = recordApi("orcamentos");
 
 export const firebaseService = {
   isConfigured: isFirebaseConfigReady,
@@ -225,9 +226,13 @@ export const firebaseService = {
   createCardSchedule: cardSchedules.create,
   updateCardSchedule: cardSchedules.update,
   deleteCardSchedule: cardSchedules.delete,
+  listOrcamentos: orcamentos.list,
+  createOrcamento: orcamentos.create,
+  updateOrcamento: orcamentos.update,
+  deleteOrcamento: orcamentos.delete,
 
   async loadOperationalData() {
-    const [vehiclesData, expensesData, tripsData, fuelingsData, employeesData, cardsData, buyersData, schedulesData] = await Promise.all([
+    const [vehiclesData, expensesData, tripsData, fuelingsData, employeesData, cardsData, buyersData, schedulesData, orcamentosData] = await Promise.all([
       this.listVehicles(),
       this.listExpenses(),
       this.listTrips(),
@@ -236,6 +241,7 @@ export const firebaseService = {
       this.listCards(),
       this.listBuyers(),
       this.listCardSchedules(),
+      this.listOrcamentos().catch(() => []),
     ]);
     return {
       vehicles: vehiclesData,
@@ -246,6 +252,7 @@ export const firebaseService = {
       cards: cardsData,
       buyers: buyersData,
       cardSchedules: schedulesData,
+      orcamentos: orcamentosData,
     };
   },
 };

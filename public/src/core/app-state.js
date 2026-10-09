@@ -8,6 +8,8 @@ export const state = {
     tripManualBase: false,
     tripManualFinal: false,
     tripPreviewData: null,
+    orcamentoEditingId: "",
+    orcamentoFilter: "todos",
   },
   data: {
     employees: [],
@@ -18,5 +20,6 @@ export const state = {
     fuelings: [],
     cardSchedules: [],
     trips: [],
+    orcamentos: [],
   },
 };

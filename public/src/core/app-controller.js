@@ -19,6 +19,7 @@ import { createEmployeePaymentsController } from "./employee-payments-controller
 import { showToast } from "./notifications.js";
 import { createRelatoriosController } from "./relatorios-controller.js";
 import { createViagensController } from "./viagens-controller.js";
+import { createOrcamentosController } from "./orcamentos-controller.js";
 
 const { getVehicleName, getEmployeeName, getBuyerName, getCardName } =
   createStateLookups(state);
@@ -95,6 +96,13 @@ const viagensController = createViagensController({
   saveFirestoreRecord,
   showToast,
 });
+const orcamentosController = createOrcamentosController({
+  state,
+  onRenderAll: () => renderAll(),
+  saveFirestoreRecord,
+  removeFirestoreRecord,
+  showToast,
+});
 
 window.closeModal = cadastrosController.closeModal;
 window.openEntityModal = cadastrosController.openEntityModal;
@@ -105,6 +113,10 @@ window.undoReportPayment = relatoriosController.undoReportPayment;
 window.markPendingAsPaid = relatoriosController.markPendingAsPaid;
 window.editTrip = viagensController.editTrip;
 window.previewTrip = viagensController.previewTrip;
+window.editOrcamento = orcamentosController.edit;
+window.duplicateOrcamento = orcamentosController.duplicate;
+window.renewOrcamento = orcamentosController.renew;
+window.deleteOrcamento = orcamentosController.delete;
 
 function applyLogo() {
   ["#loginLogoDesktop", "#loginLogoMobile", "#headerLogo", "#reportLogo"].forEach(
@@ -160,6 +172,7 @@ function renderAll() {
   relatoriosController.renderReport();
   relatoriosController.renderFuelingReport();
   viagensController.renderTripPreview();
+  orcamentosController.render();
 }
 
 function bindTabs() {
@@ -302,6 +315,7 @@ async function init() {
   viagensController.bindTrips();
   relatoriosController.bindReports();
   cadastrosController.bindModalTriggers();
+  orcamentosController.init();
   bindDynamicActions();
   initDefaults();
   renderAll();

@@ -365,6 +365,13 @@ service cloud.firestore {
       allow delete: if isAdmin() && sameCompany(resource.data.companyId);
     }
 
+    match /orcamentos/{orcamentoId} {
+      allow read: if sameCompany(resource.data.companyId);
+      allow create: if (isAdmin() || isFinance() || isOperator()) && canCreate(request.resource.data);
+      allow update: if (isAdmin() || isFinance() || isOperator()) && canUpdate(request.resource.data);
+      allow delete: if (isAdmin() || isFinance()) && sameCompany(resource.data.companyId);
+    }
+
     match /cards/{cardId} {
       allow read: if sameCompany(resource.data.companyId);
       allow create: if isAdmin() && canCreate(request.resource.data) && validCardsRecord(request.resource.data);

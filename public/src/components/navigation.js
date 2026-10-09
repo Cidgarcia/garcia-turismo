@@ -17,6 +17,7 @@ export function renderNavigation() {
             <button class="nav-chip" data-tab="abastecimento">Abastecimento</button>
             <button class="nav-chip" data-tab="cadastros">Cadastros</button>
             <button class="nav-chip" data-tab="viagens">Viagens</button>
+            <button class="nav-chip" data-tab="orcamentos">Orçamentos</button>
             <button class="nav-chip" data-tab="pendentes">Pendentes</button>
             <button class="nav-chip" data-tab="relatorios">Relatórios</button>
             <button id="logoutBtn" class="rounded-2xl px-4 py-3 btn-secondary font-semibold">Sair</button>
