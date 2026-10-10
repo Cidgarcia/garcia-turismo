@@ -47,6 +47,12 @@ async function removeFirestoreRecord(recordType, listName, id) {
 
 const dashboardController = createDashboardController({ state, getVehicleName });
 const cadastrosController = createCadastrosController({
+  state,
+  onRenderAll: () => renderAll(),
+  saveFirestoreRecord,
+  removeFirestoreRecord,
+  showToast,
+});
 
 const despesasController = createDespesasController({
   state,
