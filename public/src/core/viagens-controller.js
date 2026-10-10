@@ -62,10 +62,13 @@ export function createViagensController({
     $("#tripDuration").value = "1";
     $("#tripVehiclesQty").value = "1";
     setSelectedTripVehicleIds([]);
+    $("#tripPassengers").value = "";
+    $("#tripConsumption").value = "";
     $("#tripDiscount").value = "0.00";
     $("#tripPricePerKm").value = "";
     $("#tripOneWayKm").value = "";
     $("#tripTotalKm").value = "";
+    $("#tripEmptyKm").value = "0";
     $("#tripStatus").value = "Proposta";
     state.ui.tripEditingId = "";
     state.ui.tripManualBase = false;
@@ -87,7 +90,27 @@ export function createViagensController({
   }
   function syncTripVehiclesQtyFromSelection() {
     const selectedIds = getSelectedTripVehicleIds();
-    if (selectedIds.length) $("#tripVehiclesQty").value = String(selectedIds.length);
+    if (selectedIds.length) {
+      $("#tripVehiclesQty").value = String(selectedIds.length);
+      
+      let totalPassengers = 0;
+      let totalConsumption = 0;
+      let countConsumption = 0;
+
+      selectedIds.forEach((id) => {
+        const vehicle = state.data.vehicles.find((v) => v.id === id);
+        if (vehicle) {
+          totalPassengers += Number(vehicle.passengerCapacity || 0);
+          if (vehicle.averageConsumption) {
+            totalConsumption += Number(vehicle.averageConsumption);
+            countConsumption++;
+          }
+        }
+      });
+
+      if (totalPassengers > 0) $("#tripPassengers").value = totalPassengers;
+      if (countConsumption > 0) $("#tripConsumption").value = (totalConsumption / countConsumption).toFixed(1);
+    }
     syncTripSuggestedBaseValue(false);
   }
   function setSelectedTripVehicleIds(vehicleIds = []) {
@@ -154,8 +177,11 @@ export function createViagensController({
     const durationDays = Number($("#tripDuration").value || 1);
     const selectedVehicleIds = getSelectedTripVehicleIds();
     const vehiclesQty = Math.max(selectedVehicleIds.length || Number($("#tripVehiclesQty").value || 1), 1);
+    const passengers = Number($("#tripPassengers").value || 0);
+    const consumptionKmPerLiter = Number($("#tripConsumption").value || 0);
     const oneWayKm = Number($("#tripOneWayKm").value || 0);
     const totalKm = Number($("#tripTotalKm").value || 0);
+    const emptyKm = Number($("#tripEmptyKm").value || 0);
     const pricePerKm = Number($("#tripPricePerKm").value || 0);
     const baseValue = Number($("#tripBaseValue").value || 0);
     const discount = Number($("#tripDiscount").value || 0);
@@ -179,7 +205,7 @@ export function createViagensController({
       if (!silent) showToast("Informe o valor total e o valor final da proposta.", "error");
       return null;
     }
-    return { id: tripId, responsible, client, origin, destination, stops, itinerary: [origin, ...stops, destination], vehicleIds: selectedVehicleIds, vehicleId: selectedVehicleIds[0] || "", departureDate, returnDate, durationDays, vehiclesQty, oneWayKm, totalKm, pricePerKm, baseValue, discount, finalValue, status, emissionDate: existing?.emissionDate || today() };
+    return { id: tripId, responsible, client, origin, destination, stops, itinerary: [origin, ...stops, destination], vehicleIds: selectedVehicleIds, vehicleId: selectedVehicleIds[0] || "", departureDate, returnDate, durationDays, vehiclesQty, passengers, consumptionKmPerLiter, oneWayKm, totalKm, emptyKm, pricePerKm, baseValue, discount, finalValue, status, emissionDate: existing?.emissionDate || today() };
   }
   function tripVehicleLabel(qty) { return `${Math.max(Number(qty || 0), 1)}`; }
   function buildTripProposalMarkup(trip) {
@@ -232,7 +258,7 @@ export function createViagensController({
     const trip = state.data.trips.find((item) => item.id === id);
     if (!trip) return;
     openTripForm();
-    $("#tripId").value = trip.id; $("#tripResponsible").value = trip.responsible; $("#tripClient").value = trip.client; $("#tripStatus").value = trip.status; $("#tripOrigin").value = trip.origin; $("#tripDestination").value = trip.destination; $("#tripStops").value = (trip.stops || []).join("\n"); $("#tripDepartureDate").value = trip.departureDate; $("#tripReturnDate").value = trip.returnDate; $("#tripDuration").value = trip.durationDays; $("#tripVehiclesQty").value = trip.vehiclesQty; setSelectedTripVehicleIds(trip.vehicleIds || []); $("#tripOneWayKm").value = trip.oneWayKm || ""; $("#tripTotalKm").value = trip.totalKm;
+    $("#tripId").value = trip.id; $("#tripResponsible").value = trip.responsible; $("#tripClient").value = trip.client; $("#tripStatus").value = trip.status; $("#tripOrigin").value = trip.origin; $("#tripDestination").value = trip.destination; $("#tripStops").value = (trip.stops || []).join("\n"); $("#tripDepartureDate").value = trip.departureDate; $("#tripReturnDate").value = trip.returnDate; $("#tripDuration").value = trip.durationDays; $("#tripVehiclesQty").value = trip.vehiclesQty; setSelectedTripVehicleIds(trip.vehicleIds || []); $("#tripPassengers").value = trip.passengers || ""; $("#tripConsumption").value = trip.consumptionKmPerLiter || ""; $("#tripOneWayKm").value = trip.oneWayKm || ""; $("#tripTotalKm").value = trip.totalKm; $("#tripEmptyKm").value = trip.emptyKm || "0";
     $("#tripPricePerKm").value = Number(trip.pricePerKm || (Number(trip.totalKm) > 0 && Number(trip.vehiclesQty) > 0 ? Number(trip.baseValue) / (Number(trip.totalKm) * Number(trip.vehiclesQty)) : 0)).toFixed(2);
     $("#tripBaseValue").value = Number(trip.baseValue).toFixed(2); $("#tripDiscount").value = Number(trip.discount).toFixed(2); $("#tripFinalValue").value = Number(trip.finalValue).toFixed(2);
     state.ui.tripEditingId = trip.id; state.ui.tripManualBase = true; state.ui.tripManualFinal = true; state.ui.tripPreviewData = trip; state.ui.tripMonth = trip.departureDate.slice(0, 7); state.ui.tripSelectedDate = trip.departureDate;

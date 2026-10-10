@@ -119,12 +119,26 @@ export function renderViagensTab() {
                 <p class="text-xs muted mt-2">Selecione um ou mais veículos cadastrados. A quantidade será atualizada automaticamente.</p>
               </div>
               <div>
+                <label class="block text-sm font-medium mb-2">Passageiros previstos</label>
+                <input id="tripPassengers" class="field" type="number" min="1" placeholder="40" required />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2">Consumo (km/l)</label>
+                <input id="tripConsumption" class="field" type="number" min="0.1" step="0.1" placeholder="3.5" required readonly />
+                <p class="text-xs muted mt-2">Preenchido automaticamente a partir dos veículos.</p>
+              </div>
+              <div>
                 <label class="block text-sm font-medium mb-2">Km da ida</label>
                 <input id="tripOneWayKm" class="field" type="number" min="0" step="0.1" placeholder="0" />
               </div>
               <div>
                 <label class="block text-sm font-medium mb-2">Total de km (ida e volta)</label>
                 <input id="tripTotalKm" class="field" type="number" min="0" step="0.1" placeholder="0" required />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2">Km vazio (deslocamento sem passageiros)</label>
+                <input id="tripEmptyKm" class="field" type="number" min="0" step="0.1" value="0" />
+                <p class="text-xs muted mt-2">Opcional. Será somado ao total de km no cálculo de custos.</p>
               </div>
               <div>
                 <label class="block text-sm font-medium mb-2">Preço por km</label>
