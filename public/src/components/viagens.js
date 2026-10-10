@@ -157,6 +157,71 @@ export function renderViagensTab() {
                 <label class="block text-sm font-medium mb-2">Valor final</label>
                 <input id="tripFinalValue" class="field" type="number" min="0" step="0.01" placeholder="17000" required />
               </div>
+              <div class="xl:col-span-3 pt-4 pb-2">
+                <h4 class="text-lg font-semibold border-b border-slate-200 pb-2">Custos Diretos (Uso Interno)</h4>
+              </div>
+
+              <div class="space-y-4">
+                <label class="block text-sm font-medium mb-2">Combustível: Preço do Diesel (R$/l)</label>
+                <input id="tripFuelPrice" class="field" type="number" min="0" step="0.01" placeholder="6.20" value="6.20" />
+                <div class="text-xs muted mt-2 flex flex-col gap-1">
+                  <span>Litros necessários: <strong id="tripFuelLitersLabel">-</strong> l</span>
+                  <span>Custo total: <strong id="tripFuelCostLabel">R$ 0,00</strong></span>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium mb-2">1º Motorista</label>
+                <div class="flex gap-2">
+                  <select id="tripDriver1Type" class="field w-1/3">
+                    <option value="viagem">Por viagem</option>
+                    <option value="dia">Por dia</option>
+                  </select>
+                  <input id="tripDriver1Value" class="field w-2/3" type="number" min="0" step="0.01" placeholder="Valor" />
+                </div>
+                <div class="text-xs muted mt-2">Custo total: <strong id="tripDriver1CostLabel">R$ 0,00</strong></div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium mb-2">2º Motorista (Opcional)</label>
+                <div class="flex gap-2">
+                  <select id="tripDriver2Type" class="field w-1/3">
+                    <option value="viagem">Por viagem</option>
+                    <option value="dia">Por dia</option>
+                  </select>
+                  <input id="tripDriver2Value" class="field w-2/3" type="number" min="0" step="0.01" placeholder="Valor" />
+                </div>
+                <div class="text-xs muted mt-2">Custo total: <strong id="tripDriver2CostLabel">R$ 0,00</strong></div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium mb-2">Hospedagem</label>
+                <input id="tripLodgingCost" class="field" type="number" min="0" step="0.01" placeholder="0" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2">ANTT / Taxas</label>
+                <input id="tripAnttCost" class="field" type="number" min="0" step="0.01" placeholder="0" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2">Água / Lanches</label>
+                <input id="tripWaterCost" class="field" type="number" min="0" step="0.01" placeholder="0" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2">Seguro (Opcional)</label>
+                <input id="tripInsuranceCost" class="field" type="number" min="0" step="0.01" value="0" />
+              </div>
+
+              <div class="xl:col-span-2">
+                <label class="block text-sm font-medium mb-2">Outros Custos</label>
+                <div id="tripOtherCostsContainer" class="space-y-3 mb-3"></div>
+                <button type="button" id="tripAddOtherCostBtn" class="text-sm font-semibold text-red-600 hover:text-red-700">+ Adicionar item</button>
+              </div>
+
+              <div class="xl:col-span-3 flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-2">
+                <span class="font-medium text-slate-700">Total de Custos Diretos</span>
+                <span id="tripTotalDirectCostsLabel" class="text-xl font-bold text-slate-900">R$ 0,00</span>
+              </div>
+
               <div class="xl:col-span-3 flex flex-wrap justify-end gap-2">
                 <button type="button" id="tripCalculateKmBtn" class="rounded-2xl px-4 py-3 btn-secondary font-semibold">Calcular km</button>
                 <button type="button" id="tripRecalcFinalBtn" class="rounded-2xl px-4 py-3 btn-secondary font-semibold">Recalcular valor final</button>

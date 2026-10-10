@@ -22,6 +22,120 @@ export function createViagensController({
   saveFirestoreRecord,
   showToast,
 }) {
+  let tripOtherCostsState = [];
+
+  function renderTripOtherCostsRows() {
+    const container = $("#tripOtherCostsContainer");
+    if (!container) return;
+
+    if (tripOtherCostsState.length === 0) {
+      container.innerHTML = `<p class="text-xs muted italic">Nenhum custo adicional inserido.</p>`;
+      return;
+    }
+
+    container.innerHTML = tripOtherCostsState
+      .map(
+        (item, index) => `
+        <div class="flex items-center gap-2 p-2 rounded-xl bg-slate-100 border border-slate-200" data-custo-index="${index}">
+          <input
+            type="text"
+            class="field text-xs py-1 px-2 flex-1 trip-other-cost-name"
+            placeholder="Descrição (ex: Estacionamento)"
+            value="${escapeHtml(item.nome || "")}"
+            data-index="${index}"
+          />
+          <div class="relative w-28">
+            <span class="absolute left-2 top-1 text-xs text-slate-400">R$</span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              class="field text-xs py-1 pl-7 pr-2 w-full text-right font-medium trip-other-cost-value"
+              placeholder="0,00"
+              value="${item.valor || ""}"
+              data-index="${index}"
+            />
+          </div>
+          <button
+            type="button"
+            class="p-1 rounded-lg text-red-500 hover:bg-red-100 font-bold text-sm leading-none trip-remove-other-cost"
+            data-index="${index}"
+            title="Remover custo"
+          >×</button>
+        </div>
+      `,
+      )
+      .join("");
+      
+    // Bind events for the newly rendered inputs
+    $$(".trip-other-cost-name").forEach(input => {
+      input.addEventListener("input", (e) => {
+        const idx = e.target.dataset.index;
+        tripOtherCostsState[idx].nome = e.target.value;
+        syncTripDirectCosts();
+      });
+    });
+    $$(".trip-other-cost-value").forEach(input => {
+      input.addEventListener("input", (e) => {
+        const idx = e.target.dataset.index;
+        tripOtherCostsState[idx].valor = Number(e.target.value) || 0;
+        syncTripDirectCosts();
+      });
+    });
+    $$(".trip-remove-other-cost").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const idx = e.target.dataset.index;
+        tripOtherCostsState.splice(idx, 1);
+        renderTripOtherCostsRows();
+        syncTripDirectCosts();
+      });
+    });
+  }
+
+  function syncTripDirectCosts() {
+    const totalKm = Number($("#tripTotalKm")?.value || 0);
+    const emptyKm = Number($("#tripEmptyKm")?.value || 0);
+    const consumption = Number($("#tripConsumption")?.value || 0);
+    const fuelPrice = Number($("#tripFuelPrice")?.value || 0);
+    
+    // Fuel logic
+    const distanceForFuel = totalKm + emptyKm;
+    let fuelLiters = 0;
+    let fuelCost = 0;
+    if (consumption > 0 && distanceForFuel > 0) {
+      fuelLiters = distanceForFuel / consumption;
+      fuelCost = fuelLiters * fuelPrice;
+    }
+    
+    if ($("#tripFuelLitersLabel")) $("#tripFuelLitersLabel").textContent = fuelLiters.toFixed(1);
+    if ($("#tripFuelCostLabel")) $("#tripFuelCostLabel").textContent = currency(fuelCost);
+    
+    // Drivers
+    const driver1Type = $("#tripDriver1Type")?.value || "viagem";
+    const driver1Val = Number($("#tripDriver1Value")?.value || 0);
+    const duration = Number($("#tripDuration")?.value || 1);
+    const driver1Cost = driver1Type === "dia" ? driver1Val * duration : driver1Val;
+    if ($("#tripDriver1CostLabel")) $("#tripDriver1CostLabel").textContent = currency(driver1Cost);
+
+    const driver2Type = $("#tripDriver2Type")?.value || "viagem";
+    const driver2Val = Number($("#tripDriver2Value")?.value || 0);
+    const driver2Cost = driver2Type === "dia" ? driver2Val * duration : driver2Val;
+    if ($("#tripDriver2CostLabel")) $("#tripDriver2CostLabel").textContent = currency(driver2Cost);
+
+    const lodging = Number($("#tripLodgingCost")?.value || 0);
+    const antt = Number($("#tripAnttCost")?.value || 0);
+    const water = Number($("#tripWaterCost")?.value || 0);
+    const insurance = Number($("#tripInsuranceCost")?.value || 0);
+    
+    const others = tripOtherCostsState.reduce((acc, curr) => acc + Number(curr.valor || 0), 0);
+    
+    const total = fuelCost + driver1Cost + driver2Cost + lodging + antt + water + insurance + others;
+    
+    if ($("#tripTotalDirectCostsLabel")) $("#tripTotalDirectCostsLabel").textContent = currency(total);
+    
+    return total;
+  }
+
   function tripStatusBadge(status) {
     if (status === "Confirmada" || status === "Realizada") return `<span class="status-badge status-paid">${escapeHtml(status)}</span>`;
     if (status === "Cancelada") return '<span class="status-badge status-cancelled">Cancelada</span>';
@@ -70,6 +184,22 @@ export function createViagensController({
     $("#tripTotalKm").value = "";
     $("#tripEmptyKm").value = "0";
     $("#tripStatus").value = "Proposta";
+    
+    // Clear costs
+    $("#tripFuelPrice").value = "6.20";
+    $("#tripDriver1Type").value = "viagem";
+    $("#tripDriver1Value").value = "";
+    $("#tripDriver2Type").value = "viagem";
+    $("#tripDriver2Value").value = "";
+    $("#tripLodgingCost").value = "";
+    $("#tripAnttCost").value = "";
+    $("#tripWaterCost").value = "";
+    $("#tripInsuranceCost").value = "0";
+    
+    tripOtherCostsState = [];
+    renderTripOtherCostsRows();
+    syncTripDirectCosts();
+
     state.ui.tripEditingId = "";
     state.ui.tripManualBase = false;
     state.ui.tripManualFinal = false;
@@ -189,6 +319,18 @@ export function createViagensController({
     const status = $("#tripStatus").value;
     const stops = $("#tripStops").value.split(/\n+/).map((item) => item.trim()).filter(Boolean);
     const existing = state.data.trips.find((trip) => trip.id === tripId);
+    
+    // Cost fields
+    const fuelPrice = Number($("#tripFuelPrice").value || 6.2);
+    const driver1Type = $("#tripDriver1Type").value || "viagem";
+    const driver1Value = Number($("#tripDriver1Value").value || 0);
+    const driver2Type = $("#tripDriver2Type").value || "viagem";
+    const driver2Value = Number($("#tripDriver2Value").value || 0);
+    const lodgingCost = Number($("#tripLodgingCost").value || 0);
+    const anttCost = Number($("#tripAnttCost").value || 0);
+    const waterCost = Number($("#tripWaterCost").value || 0);
+    const insuranceCost = Number($("#tripInsuranceCost").value || 0);
+
     if (!responsible || !client || !origin || !destination || !departureDate || !returnDate) {
       if (!silent) showToast("Preencha os campos principais da proposta.", "error");
       return null;
@@ -205,7 +347,10 @@ export function createViagensController({
       if (!silent) showToast("Informe o valor total e o valor final da proposta.", "error");
       return null;
     }
-    return { id: tripId, responsible, client, origin, destination, stops, itinerary: [origin, ...stops, destination], vehicleIds: selectedVehicleIds, vehicleId: selectedVehicleIds[0] || "", departureDate, returnDate, durationDays, vehiclesQty, passengers, consumptionKmPerLiter, oneWayKm, totalKm, emptyKm, pricePerKm, baseValue, discount, finalValue, status, emissionDate: existing?.emissionDate || today() };
+    return { 
+      id: tripId, responsible, client, origin, destination, stops, itinerary: [origin, ...stops, destination], vehicleIds: selectedVehicleIds, vehicleId: selectedVehicleIds[0] || "", departureDate, returnDate, durationDays, vehiclesQty, passengers, consumptionKmPerLiter, oneWayKm, totalKm, emptyKm, pricePerKm, baseValue, discount, finalValue, status, emissionDate: existing?.emissionDate || today(),
+      fuelPrice, driver1Type, driver1Value, driver2Type, driver2Value, lodgingCost, anttCost, waterCost, insuranceCost, otherCosts: [...tripOtherCostsState]
+    };
   }
   function tripVehicleLabel(qty) { return `${Math.max(Number(qty || 0), 1)}`; }
   function buildTripProposalMarkup(trip) {
@@ -261,6 +406,21 @@ export function createViagensController({
     $("#tripId").value = trip.id; $("#tripResponsible").value = trip.responsible; $("#tripClient").value = trip.client; $("#tripStatus").value = trip.status; $("#tripOrigin").value = trip.origin; $("#tripDestination").value = trip.destination; $("#tripStops").value = (trip.stops || []).join("\n"); $("#tripDepartureDate").value = trip.departureDate; $("#tripReturnDate").value = trip.returnDate; $("#tripDuration").value = trip.durationDays; $("#tripVehiclesQty").value = trip.vehiclesQty; setSelectedTripVehicleIds(trip.vehicleIds || []); $("#tripPassengers").value = trip.passengers || ""; $("#tripConsumption").value = trip.consumptionKmPerLiter || ""; $("#tripOneWayKm").value = trip.oneWayKm || ""; $("#tripTotalKm").value = trip.totalKm; $("#tripEmptyKm").value = trip.emptyKm || "0";
     $("#tripPricePerKm").value = Number(trip.pricePerKm || (Number(trip.totalKm) > 0 && Number(trip.vehiclesQty) > 0 ? Number(trip.baseValue) / (Number(trip.totalKm) * Number(trip.vehiclesQty)) : 0)).toFixed(2);
     $("#tripBaseValue").value = Number(trip.baseValue).toFixed(2); $("#tripDiscount").value = Number(trip.discount).toFixed(2); $("#tripFinalValue").value = Number(trip.finalValue).toFixed(2);
+    
+    $("#tripFuelPrice").value = trip.fuelPrice || "6.20";
+    $("#tripDriver1Type").value = trip.driver1Type || "viagem";
+    $("#tripDriver1Value").value = trip.driver1Value || "";
+    $("#tripDriver2Type").value = trip.driver2Type || "viagem";
+    $("#tripDriver2Value").value = trip.driver2Value || "";
+    $("#tripLodgingCost").value = trip.lodgingCost || "";
+    $("#tripAnttCost").value = trip.anttCost || "";
+    $("#tripWaterCost").value = trip.waterCost || "";
+    $("#tripInsuranceCost").value = trip.insuranceCost || "0";
+    
+    tripOtherCostsState = Array.isArray(trip.otherCosts) ? JSON.parse(JSON.stringify(trip.otherCosts)) : [];
+    renderTripOtherCostsRows();
+    syncTripDirectCosts();
+
     state.ui.tripEditingId = trip.id; state.ui.tripManualBase = true; state.ui.tripManualFinal = true; state.ui.tripPreviewData = trip; state.ui.tripMonth = trip.departureDate.slice(0, 7); state.ui.tripSelectedDate = trip.departureDate;
     renderTripsCalendar(); renderTripDaySummary(); renderTripPreview(); document.querySelector('[data-tab="viagens"]').click();
   }
@@ -296,6 +456,20 @@ export function createViagensController({
     $("#tripCalculateKmBtn").addEventListener("click", calculateTripDistance); $("#tripPreviewBtn").addEventListener("click", () => { const payload = buildTripPayloadFromForm(); if (!payload) return; state.ui.tripPreviewData = payload; renderTripPreview(); $("#tripPreviewCard").scrollIntoView({ behavior: "smooth", block: "start" }); });
     $("#tripForm").addEventListener("submit", async (event) => { event.preventDefault(); const payload = buildTripPayloadFromForm(); if (!payload) return; const index = state.data.trips.findIndex((trip) => trip.id === payload.id); try { await saveFirestoreRecord("Trip", "trips", payload, { prepend: true }); state.ui.tripPreviewData = payload; state.ui.tripMonth = payload.departureDate.slice(0, 7); state.ui.tripSelectedDate = payload.departureDate; onRenderAll(); renderTripPreview(); showToast(index >= 0 ? "Viagem atualizada com sucesso." : "Viagem cadastrada com sucesso.", "success"); } catch (error) { console.error("Erro ao salvar viagem:", error); showToast(error.message || "Não foi possível salvar a viagem.", "error"); } });
     $("#tripExportPdfBtn").addEventListener("click", exportTripProposalPdf); $("#tripExportImageBtn").addEventListener("click", exportTripProposalImage);
+    
+    // Bind cost fields
+    const costFields = ["#tripFuelPrice", "#tripDriver1Type", "#tripDriver1Value", "#tripDriver2Type", "#tripDriver2Value", "#tripLodgingCost", "#tripAnttCost", "#tripWaterCost", "#tripInsuranceCost", "#tripTotalKm", "#tripEmptyKm", "#tripConsumption", "#tripDuration"];
+    costFields.forEach(selector => {
+      const el = $(selector);
+      if (el) el.addEventListener("input", syncTripDirectCosts);
+      if (el && el.tagName === "SELECT") el.addEventListener("change", syncTripDirectCosts);
+    });
+
+    $("#tripAddOtherCostBtn")?.addEventListener("click", () => {
+      tripOtherCostsState.push({ nome: "", valor: 0 });
+      renderTripOtherCostsRows();
+      syncTripDirectCosts();
+    });
   }
   return { bindTrips, clearTripForm, editTrip, previewTrip, renderTripDaySummary, renderTripPreview, renderTripsCalendar, renderTripsTable };
 }
