@@ -174,7 +174,7 @@
             const rawSession = localStorage.getItem("garcia_turismo_state_backup");
             if (rawSession) {
               const state = JSON.parse(rawSession);
-              const found = (state?.data?.orcamentos || []).find((o) => o.id === orcId);
+              const found = (state?.data?.trips || []).find((o) => o.id === orcId);
               if (found) {
                 const veiculo = (state?.data?.vehicles || []).find((v) => v.id === found.veiculoId);
                 return { ...found, veiculo };

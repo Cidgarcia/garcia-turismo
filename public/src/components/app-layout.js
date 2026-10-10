@@ -5,7 +5,6 @@ import { renderDespesasTab } from "./despesas.js";
 import { renderAbastecimentoTab } from "./abastecimento.js";
 import { renderCadastrosTab } from "./cadastros.js";
 import { renderViagensTab } from "./viagens.js";
-import { renderOrcamentosTab } from "./orcamentos.js";
 import { renderPendentesTab } from "./pendentes.js";
 import { renderRelatoriosTab } from "./relatorios.js";
 import { renderModalShell } from "./modal-shell.js";
@@ -23,7 +22,6 @@ export function renderAppLayout() {
         ${renderAbastecimentoTab()}
         ${renderCadastrosTab()}
         ${renderViagensTab()}
-        ${renderOrcamentosTab()}
         ${renderPendentesTab()}
         ${renderRelatoriosTab()}
       </main>

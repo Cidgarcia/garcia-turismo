@@ -14,6 +14,7 @@ import {
   computeDurationDays,
   formatMonthLabel,
 } from "./trip-date-utils.js";
+import { calculateOrcamento, evaluateOrcamentoValidity } from "../utils/orcamento-calculator.js";
 
 export function createViagensController({
   state,
@@ -133,7 +134,67 @@ export function createViagensController({
     
     if ($("#tripTotalDirectCostsLabel")) $("#tripTotalDirectCostsLabel").textContent = currency(total);
     
+    syncTripProfitability();
     return total;
+  }
+
+  function syncTripProfitability() {
+    const totalKm = Number($("#tripTotalKm")?.value || 0);
+    const emptyKm = Number($("#tripEmptyKm")?.value || 0);
+    const passageiros = Number($("#tripPassengers")?.value || 0);
+    const consumption = Number($("#tripConsumption")?.value || 0);
+    
+    // Drivers
+    const duration = Number($("#tripDuration")?.value || 1);
+    const driver1Type = $("#tripDriver1Type")?.value || "viagem";
+    const driver1Val = Number($("#tripDriver1Value")?.value || 0);
+    const driver1Cost = driver1Type === "dia" ? driver1Val * duration : driver1Val;
+    const driver2Type = $("#tripDriver2Type")?.value || "viagem";
+    const driver2Val = Number($("#tripDriver2Value")?.value || 0);
+    const driver2Cost = driver2Type === "dia" ? driver2Val * duration : driver2Val;
+
+    const metrics = calculateOrcamento({
+      valorCobrado: $("#tripFinalValue")?.value || 0,
+      totalKm: totalKm + emptyKm,
+      capacidadePassageiros: passageiros,
+      consumoKmPerLiter: consumption,
+      fuelPricePerLiter: Number($("#tripFuelPrice")?.value || 0),
+      motorista1Valor: driver1Cost,
+      motorista2Valor: driver2Cost,
+      hospedagem: Number($("#tripLodgingCost")?.value || 0),
+      antt: Number($("#tripAnttCost")?.value || 0),
+      agua: Number($("#tripWaterCost")?.value || 0),
+      seguro: Number($("#tripInsuranceCost")?.value || 0),
+      outrosCustos: tripOtherCostsState,
+    });
+
+    if ($("#tripMargemAtualLabel")) $("#tripMargemAtualLabel").textContent = metrics.margemPercent.toFixed(1).replace(".", ",") + "%";
+    if ($("#tripLucroEstimadoLabel")) $("#tripLucroEstimadoLabel").textContent = metrics.lucro;
+    if ($("#tripPrecoSugeridoLabel")) $("#tripPrecoSugeridoLabel").textContent = metrics.precoSugeridoMeta;
+
+    if ($("#tripCustoPorKmLabel")) $("#tripCustoPorKmLabel").textContent = metrics.custoPorKm;
+    if ($("#tripReceitaPorKmLabel")) $("#tripReceitaPorKmLabel").textContent = metrics.receitaPorKm;
+    if ($("#tripPrecoPorPoltronaLabel")) $("#tripPrecoPorPoltronaLabel").textContent = metrics.precoPorPoltrona;
+    if ($("#tripPontoEquilibrioLabel")) $("#tripPontoEquilibrioLabel").textContent = `${metrics.pontoEquilibrioPoltronas} poltronas`;
+
+    const statusObj = metrics.fairPrice;
+    const badge = $("#tripPrecoJustoBadge");
+    if (badge) {
+      badge.textContent = statusObj.label;
+      // Extract color classes from orcamento-calculator logic if possible, or define them here.
+      // orcamento-calculator.js uses: textColor, bgClass, borderColor
+      badge.className = `px-3 py-1 rounded-full text-xs font-bold border ${statusObj.textColor || 'text-slate-600'} ${statusObj.bgClass || 'bg-slate-200'} ${statusObj.borderColor || 'border-slate-300'}`;
+    }
+
+    const indicator = $("#tripPrecoJustoIndicator");
+    if (indicator) {
+      let left = metrics.margemPercent;
+      if (left < 0) left = 0;
+      if (left > 100) left = 100;
+      indicator.style.left = `${left}%`;
+    }
+    
+    state.ui.tripProfitabilityMetrics = metrics;
   }
 
   function tripStatusBadge(status) {
@@ -154,6 +215,7 @@ export function createViagensController({
     const baseValue = Number($("#tripBaseValue").value || 0);
     const discount = Number($("#tripDiscount").value || 0);
     if (force || !state.ui.tripManualFinal) $("#tripFinalValue").value = Math.max(baseValue - discount, 0).toFixed(2);
+    syncTripProfitability();
   }
   function syncTripSuggestedBaseValue(force = false) {
     const totalKm = Number($("#tripTotalKm").value || 0);
@@ -171,6 +233,11 @@ export function createViagensController({
   function clearTripForm() {
     $("#tripForm").reset();
     $("#tripId").value = "";
+    $("#tripEmissaoDate").value = today();
+    $("#tripOrcamentoNum").value = "";
+    $("#tripOrcamentoVersao").value = "1";
+    $("#tripValidadeDias").value = "7";
+    // Keep the commercial conditions from the duplicated trip
     $("#tripDepartureDate").value = today();
     $("#tripReturnDate").value = today();
     $("#tripDuration").value = "1";
@@ -183,7 +250,7 @@ export function createViagensController({
     $("#tripOneWayKm").value = "";
     $("#tripTotalKm").value = "";
     $("#tripEmptyKm").value = "0";
-    $("#tripStatus").value = "Proposta";
+    $("#tripStatus").value = "Rascunho";
     
     // Clear costs
     $("#tripFuelPrice").value = "6.20";
@@ -196,6 +263,10 @@ export function createViagensController({
     $("#tripWaterCost").value = "";
     $("#tripInsuranceCost").value = "0";
     
+    $("#tripPaymentTerms").value = "30% na confirmação e o restante até 5 dias antes da viagem.";
+    $("#tripIncluded").value = "Transporte ida e volta, combustível, motorista(s), pedágios e taxas de rodagem.";
+    $("#tripNotIncluded").value = "Hospedagem de passageiros, alimentação de passageiros, ingressos e passeios extras.";
+    $("#tripRules").value = "- Tolerância de atraso: 15 minutos.\n- Bagagem: 1 mala no bagageiro e 1 volume de mão pequeno por passageiro.\n- É expressamente proibido o consumo de bebidas alcoólicas e fumo no interior do veículo.\n- Menores de 16 anos desacompanhados precisam de autorização judicial ou dos pais reconhecida em cartório.";
     tripOtherCostsState = [];
     renderTripOtherCostsRows();
     syncTripDirectCosts();
@@ -218,6 +289,25 @@ export function createViagensController({
   function getSelectedTripVehicleIds() {
     return [...($("#tripVehicleIds")?.selectedOptions || [])].map((option) => option.value).filter(Boolean);
   }
+  function syncTripIncludedText() {
+    if (!state.ui.tripEditingId || $("#tripIncluded").value.includes("Transporte")) {
+      const selectedIds = getSelectedTripVehicleIds();
+      let hasBus = false; let hasVan = false;
+      selectedIds.forEach((id) => {
+        const vehicle = state.data.vehicles.find((v) => v.id === id);
+        if (vehicle && vehicle.type && vehicle.type.toLowerCase() === "ônibus") hasBus = true;
+        else if (vehicle && vehicle.type && vehicle.type.toLowerCase() === "van") hasVan = true;
+      });
+      const insuranceCost = Number($("#tripInsuranceCost").value || 0);
+      let text = "Transporte ida e volta, combustível, motorista(s), pedágios e taxas de rodagem.";
+      if (hasBus) text = "Transporte ida e volta em ônibus executivo, combustível, motorista(s), pedágios e taxas de rodagem.";
+      if (hasVan) text = "Transporte ida e volta em van executiva, combustível, motorista(s), pedágios e taxas de rodagem.";
+      if (hasBus && hasVan) text = "Transporte ida e volta, combustível, motorista(s), pedágios e taxas de rodagem.";
+      
+      if (insuranceCost > 0) text += " Seguro de viagem por passageiro incluso.";
+      $("#tripIncluded").value = text;
+    }
+  }
   function syncTripVehiclesQtyFromSelection() {
     const selectedIds = getSelectedTripVehicleIds();
     if (selectedIds.length) {
@@ -239,6 +329,7 @@ export function createViagensController({
       });
 
       if (totalPassengers > 0) $("#tripPassengers").value = totalPassengers;
+        syncTripIncludedText();
       if (countConsumption > 0) $("#tripConsumption").value = (totalConsumption / countConsumption).toFixed(1);
     }
     syncTripSuggestedBaseValue(false);
@@ -298,6 +389,10 @@ export function createViagensController({
   }
   function buildTripPayloadFromForm({ silent = false } = {}) {
     const tripId = $("#tripId").value || uid();
+    const emissaoDate = $("#tripEmissaoDate").value || today();
+    const orcamentoNum = $("#tripOrcamentoNum").value || `${tripId.substring(0,6).toUpperCase()}`;
+    const orcamentoVersao = Number($("#tripOrcamentoVersao").value || 1);
+    const validadeDias = Number($("#tripValidadeDias").value || 7);
     const responsible = $("#tripResponsible").value.trim();
     const client = $("#tripClient").value.trim();
     const origin = $("#tripOrigin").value.trim();
@@ -370,12 +465,56 @@ export function createViagensController({
   }
   function renderTripsTable() {
     const rows = [...state.data.trips].sort((a, b) => (a.departureDate || "").localeCompare(b.departureDate || ""));
-    $("#tripTable").innerHTML = rows.map((trip) => `<tr><td>${formatDate(trip.departureDate)}</td><td>${escapeHtml(trip.client)}</td><td>${escapeHtml(trip.destination)}</td><td>${escapeHtml(getTripVehicleNames(trip).join(" • ") || tripVehicleLabel(trip.vehiclesQty))}</td><td>${tripStatusBadge(trip.status)}</td><td>${currency(trip.finalValue)}</td><td class="text-right whitespace-nowrap"><button class="text-slate-700 font-semibold mr-3" data-action="edit-trip" data-id="${escapeHtml(trip.id)}">Editar</button><button class="text-red-600 font-semibold" data-action="preview-trip" data-id="${escapeHtml(trip.id)}">Abrir</button></td></tr>`).join("") || '<tr><td colspan="7" class="text-center muted py-6">Nenhuma viagem cadastrada.</td></tr>';
+    $("#tripTable").innerHTML = rows.map((trip) => {
+        // Calculate profitability metrics for the list
+        const driver1Cost = trip.driver1Type === "dia" ? (Number(trip.driver1Value)||0) * (Number(trip.durationDays)||1) : (Number(trip.driver1Value)||0);
+        const driver2Cost = trip.driver2Type === "dia" ? (Number(trip.driver2Value)||0) * (Number(trip.durationDays)||1) : (Number(trip.driver2Value)||0);
+        
+        const metrics = calculateOrcamento({
+            valorCobrado: trip.finalValue || 0,
+            totalKm: (Number(trip.totalKm)||0) + (Number(trip.emptyKm)||0),
+            capacidadePassageiros: Number(trip.passengers)||0,
+            consumoKmPerLiter: Number(trip.consumptionKmPerLiter)||0,
+            fuelPricePerLiter: Number(trip.fuelPrice)||0,
+            motorista1Valor: driver1Cost,
+            motorista2Valor: driver2Cost,
+            hospedagem: Number(trip.lodgingCost)||0,
+            antt: Number(trip.anttCost)||0,
+            agua: Number(trip.waterCost)||0,
+            seguro: Number(trip.insuranceCost)||0,
+            outrosCustos: trip.otherCosts || []
+        });
+        
+        const statusObj = metrics.fairPrice;
+        
+        // Validade
+        const valInfo = evaluateOrcamentoValidity({
+            dataEmissao: trip.emissaoDate || trip.createdAt,
+            diasValidade: trip.validadeDias || 7,
+            status: trip.status
+        });
+        const validadeHtml = `${formatDate(valInfo.dataValidade)} ${valInfo.isExpirado ? '<span class="text-xs text-red-500 font-bold ml-1">(Expirado)</span>' : ''}`;
+
+        return `<tr>
+            <td>${formatDate(trip.departureDate)}</td>
+            <td>${escapeHtml(trip.orcamentoNum || "")} v${trip.orcamentoVersao || "1"}</td>
+            <td>${escapeHtml(trip.client)}</td>
+            <td>${escapeHtml(trip.destination)}</td>
+            <td class="font-bold">${currency(trip.finalValue)}</td>
+            <td><span class="px-2 py-0.5 rounded-full text-xs font-bold ${statusObj.bgClass} ${statusObj.textColor}">${metrics.margemPercent.toFixed(1).replace(".",",")}%</span></td>
+            <td><div class="flex flex-col gap-1">${tripStatusBadge(trip)}<span class="text-[10px] text-slate-500">${validadeHtml}</span></div></td>
+            <td class="text-right whitespace-nowrap">
+                <button class="text-slate-700 font-semibold mr-3" data-action="edit-trip" data-id="${escapeHtml(trip.id)}">Editar</button>
+                <button class="text-blue-600 font-semibold mr-3" data-action="duplicate-trip" data-id="${escapeHtml(trip.id)}">Duplicar</button>
+                <button class="text-red-600 font-semibold" data-action="preview-trip" data-id="${escapeHtml(trip.id)}">Abrir</button>
+            </td>
+        </tr>`;
+    }).join("") || '<tr><td colspan="8" class="text-center muted py-6">Nenhuma viagem cadastrada.</td></tr>';
   }
   function renderTripDaySummary() {
     $("#tripSelectedDateLabel").textContent = formatDate(state.ui.tripSelectedDate);
     const trips = getTripsForDate(state.ui.tripSelectedDate);
-    $("#tripDaySummary").innerHTML = trips.map((trip) => `<div class="metric-card p-4"><div class="flex items-center justify-between gap-3 flex-wrap"><div class="font-semibold">${escapeHtml(trip.destination)}</div>${tripStatusBadge(trip.status)}</div><div class="muted text-sm mt-2">Cliente: ${escapeHtml(trip.client)}</div><div class="muted text-sm">Saída: ${formatDate(trip.departureDate)} • Retorno: ${formatDate(trip.returnDate)}</div><div class="muted text-sm">Veículos: ${escapeHtml(getTripVehicleNames(trip).join(" • ") || tripVehicleLabel(trip.vehiclesQty))}</div><div class="flex flex-wrap gap-2 mt-3"><button class="rounded-xl px-3 py-2 btn-secondary text-sm font-semibold" data-action="edit-trip" data-id="${escapeHtml(trip.id)}">Editar</button><button class="rounded-xl px-3 py-2 btn-primary text-sm font-semibold" data-action="preview-trip" data-id="${escapeHtml(trip.id)}">Abrir proposta</button></div></div>`).join("") || '<div class="metric-card p-4 muted">Nenhuma viagem cadastrada para esta data.</div>';
+    $("#tripDaySummary").innerHTML = trips.map((trip) => `<div class="metric-card p-4"><div class="flex items-center justify-between gap-3 flex-wrap"><div class="font-semibold">${escapeHtml(trip.destination)}</div>${tripStatusBadge(trip)}</div><div class="muted text-sm mt-2">Cliente: ${escapeHtml(trip.client)}</div><div class="muted text-sm">Saída: ${formatDate(trip.departureDate)} • Retorno: ${formatDate(trip.returnDate)}</div><div class="muted text-sm">Veículos: ${escapeHtml(getTripVehicleNames(trip).join(" • ") || tripVehicleLabel(trip.vehiclesQty))}</div><div class="flex flex-wrap gap-2 mt-3"><button class="rounded-xl px-3 py-2 btn-secondary text-sm font-semibold" data-action="edit-trip" data-id="${escapeHtml(trip.id)}">Editar</button><button class="rounded-xl px-3 py-2 btn-primary text-sm font-semibold" data-action="preview-trip" data-id="${escapeHtml(trip.id)}">Abrir proposta</button></div></div>`).join("") || '<div class="metric-card p-4 muted">Nenhuma viagem cadastrada para esta data.</div>';
   }
   function renderTripsCalendar() {
     const currentMonth = state.ui.tripMonth;
@@ -403,7 +542,12 @@ export function createViagensController({
     const trip = state.data.trips.find((item) => item.id === id);
     if (!trip) return;
     openTripForm();
-    $("#tripId").value = trip.id; $("#tripResponsible").value = trip.responsible; $("#tripClient").value = trip.client; $("#tripStatus").value = trip.status; $("#tripOrigin").value = trip.origin; $("#tripDestination").value = trip.destination; $("#tripStops").value = (trip.stops || []).join("\n"); $("#tripDepartureDate").value = trip.departureDate; $("#tripReturnDate").value = trip.returnDate; $("#tripDuration").value = trip.durationDays; $("#tripVehiclesQty").value = trip.vehiclesQty; setSelectedTripVehicleIds(trip.vehicleIds || []); $("#tripPassengers").value = trip.passengers || ""; $("#tripConsumption").value = trip.consumptionKmPerLiter || ""; $("#tripOneWayKm").value = trip.oneWayKm || ""; $("#tripTotalKm").value = trip.totalKm; $("#tripEmptyKm").value = trip.emptyKm || "0";
+    $("#tripId").value = trip.id;
+    $("#tripEmissaoDate").value = trip.emissaoDate || trip.createdAt || today();
+    $("#tripOrcamentoNum").value = trip.orcamentoNum || "";
+    $("#tripOrcamentoVersao").value = trip.orcamentoVersao || "1";
+    $("#tripValidadeDias").value = trip.validadeDias || "7";
+    $("#tripResponsible").value = trip.responsible; $("#tripClient").value = trip.client; $("#tripStatus").value = trip.status; $("#tripOrigin").value = trip.origin; $("#tripDestination").value = trip.destination; $("#tripStops").value = (trip.stops || []).join("\n"); $("#tripDepartureDate").value = trip.departureDate; $("#tripReturnDate").value = trip.returnDate; $("#tripDuration").value = trip.durationDays; $("#tripVehiclesQty").value = trip.vehiclesQty; setSelectedTripVehicleIds(trip.vehicleIds || []); $("#tripPassengers").value = trip.passengers || ""; $("#tripConsumption").value = trip.consumptionKmPerLiter || ""; $("#tripOneWayKm").value = trip.oneWayKm || ""; $("#tripTotalKm").value = trip.totalKm; $("#tripEmptyKm").value = trip.emptyKm || "0";
     $("#tripPricePerKm").value = Number(trip.pricePerKm || (Number(trip.totalKm) > 0 && Number(trip.vehiclesQty) > 0 ? Number(trip.baseValue) / (Number(trip.totalKm) * Number(trip.vehiclesQty)) : 0)).toFixed(2);
     $("#tripBaseValue").value = Number(trip.baseValue).toFixed(2); $("#tripDiscount").value = Number(trip.discount).toFixed(2); $("#tripFinalValue").value = Number(trip.finalValue).toFixed(2);
     
@@ -416,6 +560,10 @@ export function createViagensController({
     $("#tripAnttCost").value = trip.anttCost || "";
     $("#tripWaterCost").value = trip.waterCost || "";
     $("#tripInsuranceCost").value = trip.insuranceCost || "0";
+    $("#tripPaymentTerms").value = trip.paymentTerms || "30% na confirmação e o restante até 5 dias antes da viagem.";
+    $("#tripIncluded").value = trip.included || "Transporte ida e volta, combustível, motorista(s), pedágios e taxas de rodagem.";
+    $("#tripNotIncluded").value = trip.notIncluded || "Hospedagem de passageiros, alimentação de passageiros, ingressos e passeios extras.";
+    $("#tripRules").value = trip.rules || "- Tolerância de atraso: 15 minutos.\n- Bagagem: 1 mala no bagageiro e 1 volume de mão pequeno por passageiro.\n- É expressamente proibido o consumo de bebidas alcoólicas e fumo no interior do veículo.\n- Menores de 16 anos desacompanhados precisam de autorização judicial ou dos pais reconhecida em cartório.";
     
     tripOtherCostsState = Array.isArray(trip.otherCosts) ? JSON.parse(JSON.stringify(trip.otherCosts)) : [];
     renderTripOtherCostsRows();
@@ -452,13 +600,49 @@ export function createViagensController({
     $("#tripNextMonthBtn").addEventListener("click", () => { state.ui.tripMonth = addMonthsToMonthString(state.ui.tripMonth, 1); renderTripsCalendar(); });
     $("#tripDepartureDate").addEventListener("change", syncTripDuration); $("#tripReturnDate").addEventListener("change", syncTripDuration);
     $("#tripVehiclesQty").addEventListener("input", () => syncTripSuggestedBaseValue(false)); $("#tripVehicleIds").addEventListener("change", syncTripVehiclesQtyFromSelection); $("#tripTotalKm").addEventListener("input", () => syncTripSuggestedBaseValue(false));
-    $("#tripPricePerKm").addEventListener("input", () => { state.ui.tripManualBase = false; syncTripSuggestedBaseValue(true); }); $("#tripBaseValue").addEventListener("input", () => { state.ui.tripManualBase = true; syncTripFinalValue(false); }); $("#tripDiscount").addEventListener("input", () => syncTripFinalValue(false)); $("#tripFinalValue").addEventListener("input", () => { state.ui.tripManualFinal = true; }); $("#tripRecalcFinalBtn").addEventListener("click", () => { state.ui.tripManualFinal = false; syncTripFinalValue(true); });
+    $("#tripPricePerKm").addEventListener("input", () => { state.ui.tripManualBase = false; syncTripSuggestedBaseValue(true); });
+    $("#tripBaseValue").addEventListener("input", () => { state.ui.tripManualBase = true; syncTripFinalValue(false); });
+    $("#tripDiscount").addEventListener("input", () => syncTripFinalValue(false));
+    $("#tripFinalValue").addEventListener("input", () => { state.ui.tripManualFinal = true; syncTripProfitability(); });
+    $("#tripRecalcFinalBtn").addEventListener("click", () => { state.ui.tripManualFinal = false; syncTripFinalValue(true); });
+    
+    $("#tripAplicarPrecoBtn")?.addEventListener("click", () => {
+      const suggestedCents = state.ui.tripProfitabilityMetrics?.precoSugeridoMetaCents || 0;
+      if (suggestedCents > 0) {
+        state.ui.tripManualFinal = true;
+        const newVal = suggestedCents / 100;
+        $("#tripFinalValue").value = newVal.toFixed(2);
+        
+        const totalKm = Number($("#tripTotalKm")?.value || 0);
+        const vehiclesQty = Math.max(Number($("#tripVehiclesQty")?.value || 1), 1);
+        if (totalKm > 0) {
+           const discount = Number($("#tripDiscount").value || 0);
+           const baseVal = newVal + discount;
+           $("#tripBaseValue").value = baseVal.toFixed(2);
+           $("#tripPricePerKm").value = (baseVal / (totalKm * vehiclesQty)).toFixed(2);
+        }
+
+        syncTripProfitability();
+        showToast("Preço sugerido aplicado com sucesso.", "success");
+      }
+    });
+
     $("#tripCalculateKmBtn").addEventListener("click", calculateTripDistance); $("#tripPreviewBtn").addEventListener("click", () => { const payload = buildTripPayloadFromForm(); if (!payload) return; state.ui.tripPreviewData = payload; renderTripPreview(); $("#tripPreviewCard").scrollIntoView({ behavior: "smooth", block: "start" }); });
     $("#tripForm").addEventListener("submit", async (event) => { event.preventDefault(); const payload = buildTripPayloadFromForm(); if (!payload) return; const index = state.data.trips.findIndex((trip) => trip.id === payload.id); try { await saveFirestoreRecord("Trip", "trips", payload, { prepend: true }); state.ui.tripPreviewData = payload; state.ui.tripMonth = payload.departureDate.slice(0, 7); state.ui.tripSelectedDate = payload.departureDate; onRenderAll(); renderTripPreview(); showToast(index >= 0 ? "Viagem atualizada com sucesso." : "Viagem cadastrada com sucesso.", "success"); } catch (error) { console.error("Erro ao salvar viagem:", error); showToast(error.message || "Não foi possível salvar a viagem.", "error"); } });
-    $("#tripExportPdfBtn").addEventListener("click", exportTripProposalPdf); $("#tripExportImageBtn").addEventListener("click", exportTripProposalImage);
+    $("#tripExportInternalPdfBtn")?.addEventListener("click", () => {
+      const id = state.ui.tripPreviewData?.id;
+      if (id) window.open(`orcamento-interno.html?id=${id}`, '_blank');
+      else showToast("Gere a prévia da proposta antes de exportar.", "error");
+    });
+    
+    $("#tripExportClientPdfBtn")?.addEventListener("click", () => {
+      const id = state.ui.tripPreviewData?.id;
+      if (id) window.open(`orcamento-cliente.html?id=${id}`, '_blank');
+      else showToast("Gere a prévia da proposta antes de exportar.", "error");
+    });
     
     // Bind cost fields
-    const costFields = ["#tripFuelPrice", "#tripDriver1Type", "#tripDriver1Value", "#tripDriver2Type", "#tripDriver2Value", "#tripLodgingCost", "#tripAnttCost", "#tripWaterCost", "#tripInsuranceCost", "#tripTotalKm", "#tripEmptyKm", "#tripConsumption", "#tripDuration"];
+    const costFields = ["#tripFuelPrice", "#tripDriver1Type", "#tripDriver1Value", "#tripDriver2Type", "#tripDriver2Value", "#tripLodgingCost", "#tripAnttCost", "#tripWaterCost", "#tripInsuranceCost", "#tripTotalKm", "#tripEmptyKm", "#tripConsumption", "#tripDuration", "#tripPassengers"];
     costFields.forEach(selector => {
       const el = $(selector);
       if (el) el.addEventListener("input", syncTripDirectCosts);
@@ -471,5 +655,26 @@ export function createViagensController({
       syncTripDirectCosts();
     });
   }
-  return { bindTrips, clearTripForm, editTrip, previewTrip, renderTripDaySummary, renderTripPreview, renderTripsCalendar, renderTripsTable };
+  function duplicateTrip(id, bumpVersion = false) {
+    const trip = state.data.trips.find((item) => item.id === id);
+    if (!trip) return;
+    editTrip(id);
+    
+    $("#tripId").value = "";
+    $("#tripEmissaoDate").value = today();
+    $("#tripValidadeDias").value = "7";
+    $("#tripStatus").value = "Rascunho";
+    
+    if (bumpVersion) {
+        $("#tripOrcamentoVersao").value = String((Number(trip.orcamentoVersao) || 1) + 1);
+    } else {
+        $("#tripOrcamentoNum").value = "";
+        $("#tripOrcamentoVersao").value = "1";
+    }
+    
+    state.ui.tripEditingId = null;
+    showToast(bumpVersion ? "Nova versão gerada. Ajuste e salve." : "Viagem duplicada. Ajuste e salve.", "success");
+  }
+
+  return { bindTrips, duplicateTrip, clearTripForm, editTrip, previewTrip, renderTripDaySummary, renderTripPreview, renderTripsCalendar, renderTripsTable };
 }

@@ -19,7 +19,6 @@ import { createEmployeePaymentsController } from "./employee-payments-controller
 import { showToast } from "./notifications.js";
 import { createRelatoriosController } from "./relatorios-controller.js";
 import { createViagensController } from "./viagens-controller.js";
-import { createOrcamentosController } from "./orcamentos-controller.js";
 
 const { getVehicleName, getEmployeeName, getBuyerName, getCardName } =
   createStateLookups(state);
@@ -48,12 +47,7 @@ async function removeFirestoreRecord(recordType, listName, id) {
 
 const dashboardController = createDashboardController({ state, getVehicleName });
 const cadastrosController = createCadastrosController({
-  state,
-  onRenderAll: () => renderAll(),
-  saveFirestoreRecord,
-  removeFirestoreRecord,
-  showToast,
-});
+
 const despesasController = createDespesasController({
   state,
   getEmployeeName,
@@ -96,13 +90,7 @@ const viagensController = createViagensController({
   saveFirestoreRecord,
   showToast,
 });
-const orcamentosController = createOrcamentosController({
-  state,
-  onRenderAll: () => renderAll(),
-  saveFirestoreRecord,
-  removeFirestoreRecord,
-  showToast,
-});
+
 
 window.closeModal = cadastrosController.closeModal;
 window.openEntityModal = cadastrosController.openEntityModal;
@@ -113,10 +101,6 @@ window.undoReportPayment = relatoriosController.undoReportPayment;
 window.markPendingAsPaid = relatoriosController.markPendingAsPaid;
 window.editTrip = viagensController.editTrip;
 window.previewTrip = viagensController.previewTrip;
-window.editOrcamento = orcamentosController.edit;
-window.duplicateOrcamento = orcamentosController.duplicate;
-window.renewOrcamento = orcamentosController.renew;
-window.deleteOrcamento = orcamentosController.delete;
 
 function applyLogo() {
   ["#loginLogoDesktop", "#loginLogoMobile", "#headerLogo", "#reportLogo"].forEach(
@@ -172,7 +156,6 @@ function renderAll() {
   relatoriosController.renderReport();
   relatoriosController.renderFuelingReport();
   viagensController.renderTripPreview();
-  orcamentosController.render();
 }
 
 function bindTabs() {
@@ -230,6 +213,8 @@ function bindDynamicActions() {
     if (action === "undo-report-payment") window.undoReportPayment(rowType, id);
     if (action === "mark-pending-paid") window.markPendingAsPaid(rowType, id);
     if (action === "edit-trip") window.editTrip(id);
+    if (action === "duplicate-trip") window.duplicateTrip(id, false);
+    if (action === "renew-trip") window.duplicateTrip(id, true);
     if (action === "preview-trip") window.previewTrip(id);
   });
 }
@@ -315,7 +300,6 @@ async function init() {
   viagensController.bindTrips();
   relatoriosController.bindReports();
   cadastrosController.bindModalTriggers();
-  orcamentosController.init();
   bindDynamicActions();
   initDefaults();
   renderAll();

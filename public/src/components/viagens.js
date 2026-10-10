@@ -40,17 +40,18 @@ export function renderViagensTab() {
             </div>
             <div class="table-wrap">
               <table>
-                <thead>
-                  <tr>
-                    <th>Saída</th>
-                    <th>Cliente</th>
-                    <th>Destino</th>
-                    <th>Veículos</th>
-                    <th>Status</th>
-                    <th>Valor final</th>
-                    <th></th>
-                  </tr>
-                </thead>
+                                  <thead>
+                    <tr>
+                      <th>Saída</th>
+                      <th>Nº / Versão</th>
+                      <th>Cliente</th>
+                      <th>Destino</th>
+                      <th>Valor</th>
+                      <th>Margem</th>
+                      <th>Validade / Status</th>
+                      <th class="text-right">Ações</th>
+                    </tr>
+                  </thead>
                 <tbody id="tripTable"></tbody>
               </table>
             </div>
@@ -65,25 +66,47 @@ export function renderViagensTab() {
               <button id="tripCancelEditBtn" class="rounded-2xl px-4 py-3 btn-secondary font-semibold">Fechar</button>
             </div>
 
-            <form id="tripForm" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              <input type="hidden" id="tripId" />
-              <div>
-                <label class="block text-sm font-medium mb-2">Responsável</label>
-                <input id="tripResponsible" list="tripResponsibleSuggestions" class="field" type="text" placeholder="Cid Augusto Garcia de Souza" required />
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-2">Cliente</label>
-                <input id="tripClient" class="field" type="text" placeholder="Nome do cliente" required />
-              </div>
-              <div>
-                <label class="block text-sm font-medium mb-2">Status</label>
-                <select id="tripStatus" class="field">
-                  <option value="Proposta">Proposta</option>
-                  <option value="Confirmada">Confirmada</option>
-                  <option value="Realizada">Realizada</option>
-                  <option value="Cancelada">Cancelada</option>
-                </select>
-              </div>
+                          <form id="tripForm" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                <input type="hidden" id="tripId" />
+                <input type="hidden" id="tripEmissaoDate" />
+
+                <div class="xl:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 pb-2 mb-2 border-b border-slate-200">
+                  <div>
+                    <label class="block text-sm font-medium mb-2">Nº Orçamento</label>
+                    <input id="tripOrcamentoNum" class="field" type="text" placeholder="Automático" readonly />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-2">Versão</label>
+                    <input id="tripOrcamentoVersao" class="field" type="number" min="1" value="1" required />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-2">Validade (dias)</label>
+                    <input id="tripValidadeDias" class="field" type="number" min="1" value="7" required />
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium mb-2">Responsável</label>
+                  <input id="tripResponsible" list="tripResponsibleSuggestions" class="field" type="text" placeholder="Cid Augusto Garcia de Souza" required />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Cliente</label>
+                  <input id="tripClient" class="field" type="text" placeholder="Nome do cliente" required />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Status</label>
+                  <select id="tripStatus" class="field">
+                    <option value="Rascunho">Rascunho</option>
+                    <option value="Enviado">Enviado</option>
+                    <option value="Aprovado">Aprovado</option>
+                    <option value="Recusado">Recusado</option>
+                    <option value="Expirado">Expirado</option>
+                    <option value="Proposta">Proposta (Antigo)</option>
+                    <option value="Confirmada">Confirmada</option>
+                    <option value="Realizada">Realizada</option>
+                    <option value="Cancelada">Cancelada</option>
+                  </select>
+                </div>
               <div>
                 <label class="block text-sm font-medium mb-2">Origem</label>
                 <input id="tripOrigin" class="field" type="text" placeholder="Sobradinho - Bahia" required />
@@ -222,6 +245,103 @@ export function renderViagensTab() {
                 <span id="tripTotalDirectCostsLabel" class="text-xl font-bold text-slate-900">R$ 0,00</span>
               </div>
 
+              <!-- BARRA DE PREÇO JUSTO (Diagnóstico de Lucratividade) -->
+              <div class="xl:col-span-3 space-y-4 p-5 bg-slate-50 rounded-2xl border border-slate-200 mb-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-sm uppercase font-bold text-slate-700">Diagnóstico de Lucratividade</span>
+                  <span id="tripPrecoJustoBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-600 border border-slate-300">
+                    Aguardando cálculo
+                  </span>
+                </div>
+
+                <!-- Barra Visual de Margem -->
+                <div class="relative w-full h-4 bg-slate-200 rounded-full overflow-hidden flex">
+                  <div style="width: 30%" class="h-full bg-red-500" title="Vermelho: < 30%"></div>
+                  <div style="width: 20%" class="h-full bg-amber-400" title="Amarelo: 30% a 49.9%"></div>
+                  <div style="width: 50%" class="h-full bg-emerald-500" title="Verde: >= 50%"></div>
+                  <!-- Indicador de Posição Atual -->
+                  <div id="tripPrecoJustoIndicator" class="absolute top-0 bottom-0 w-2 bg-slate-900 shadow-sm rounded-full transition-all duration-300" style="left: 0%"></div>
+                </div>
+                <div class="flex justify-between text-[10px] text-slate-500 font-medium">
+                  <span>0% (Prejuízo)</span>
+                  <span>30%</span>
+                  <span>50% (Meta)</span>
+                  <span>100%</span>
+                </div>
+
+                <!-- Resumo Numérico -->
+                <div class="grid grid-cols-2 gap-4 pt-2">
+                  <div>
+                    <span class="text-xs text-slate-500 font-medium">Margem Atual:</span>
+                    <p id="tripMargemAtualLabel" class="text-2xl font-bold text-slate-900">0,0%</p>
+                  </div>
+                  <div>
+                    <span class="text-xs text-slate-500 font-medium">Lucro Estimado:</span>
+                    <p id="tripLucroEstimadoLabel" class="text-2xl font-bold text-slate-900">R$ 0,00</p>
+                  </div>
+                </div>
+
+                <!-- Preço Mínimo para bater 50% -->
+                <div class="pt-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <span class="text-xs text-slate-500 font-medium">Mínimo sugerido para margem de 50%:</span>
+                    <p id="tripPrecoSugeridoLabel" class="text-lg font-bold text-slate-700">R$ 0,00</p>
+                  </div>
+                  <button type="button" id="tripAplicarPrecoBtn" class="rounded-2xl px-4 py-2 btn-secondary font-semibold text-sm">
+                    Aplicar preço sugerido
+                  </button>
+                </div>
+
+                <!-- Indicadores Unitários & Ponto de Equilíbrio -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-200 text-sm">
+                  <div>
+                    <span class="text-xs text-slate-500 block mb-1">Custo por KM</span>
+                    <span id="tripCustoPorKmLabel" class="font-semibold text-slate-700">R$ 0,00</span>
+                  </div>
+                  <div>
+                    <span class="text-xs text-slate-500 block mb-1">Receita por KM</span>
+                    <span id="tripReceitaPorKmLabel" class="font-semibold text-slate-700">R$ 0,00</span>
+                  </div>
+                  <div>
+                    <span class="text-xs text-slate-500 block mb-1">Preço por Poltrona</span>
+                    <span id="tripPrecoPorPoltronaLabel" class="font-semibold text-slate-700">R$ 0,00</span>
+                  </div>
+                  <div>
+                    <span class="text-xs text-slate-500 block mb-1">Ponto de Equilíbrio</span>
+                    <span id="tripPontoEquilibrioLabel" class="font-semibold text-slate-700">0 poltronas</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CONDIÇÕES COMERCIAIS -->
+              <div class="xl:col-span-3 pt-4 pb-2">
+                <h4 class="text-lg font-semibold border-b border-slate-200 pb-2">Condições Comerciais e Regras</h4>
+              </div>
+
+              <div class="xl:col-span-3 space-y-4 mb-4">
+                <div>
+                  <label class="block text-sm font-medium mb-2">Forma de Pagamento</label>
+                  <input id="tripPaymentTerms" class="field" type="text" value="30% na confirmação e o restante até 5 dias antes da viagem." />
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium mb-2">O que está INCLUSO</label>
+                    <textarea id="tripIncluded" class="field min-h-[100px]">Transporte ida e volta, combustível, motorista(s), pedágios e taxas de rodagem.</textarea>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-2">O que NÃO está incluso</label>
+                    <textarea id="tripNotIncluded" class="field min-h-[100px]">Hospedagem de passageiros, alimentação de passageiros, ingressos e passeios extras.</textarea>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Regras de Viagem</label>
+                  <textarea id="tripRules" class="field min-h-[120px]">- Tolerância de atraso: 15 minutos.
+- Bagagem: 1 mala no bagageiro e 1 volume de mão pequeno por passageiro.
+- É expressamente proibido o consumo de bebidas alcoólicas e fumo no interior do veículo.
+- Menores de 16 anos desacompanhados precisam de autorização judicial ou dos pais reconhecida em cartório.</textarea>
+                </div>
+              </div>
+
               <div class="xl:col-span-3 flex flex-wrap justify-end gap-2">
                 <button type="button" id="tripCalculateKmBtn" class="rounded-2xl px-4 py-3 btn-secondary font-semibold">Calcular km</button>
                 <button type="button" id="tripRecalcFinalBtn" class="rounded-2xl px-4 py-3 btn-secondary font-semibold">Recalcular valor final</button>
@@ -232,15 +352,29 @@ export function renderViagensTab() {
           </div>
 
           <div id="tripPreviewCard" class="card p-6 space-y-5 hidden-section">
-            <div class="flex flex-wrap items-center justify-between gap-3">
+                          <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 class="text-2xl font-semibold">Prévia do orçamento</h3>
-                <p class="muted mt-1">Exporte a proposta em PDF ou imagem.</p>
+                <h3 class="text-2xl font-semibold">Prévia do Orçamento</h3>
+                <p class="muted mt-1">Selecione o tipo de PDF para exportar.</p>
               </div>
               <div class="flex flex-wrap gap-2">
-                <button id="tripExportPdfBtn" class="rounded-2xl px-4 py-3 btn-primary font-semibold">Exportar PDF</button>
-                <button id="tripExportImageBtn" class="rounded-2xl px-4 py-3 btn-secondary font-semibold">Exportar imagem</button>
+                <button id="tripExportInternalPdfBtn" class="rounded-2xl px-4 py-3 btn-secondary font-semibold">PDF Interno</button>
+                <button id="tripExportClientPdfBtn" class="rounded-2xl px-4 py-3 btn-primary font-semibold">PDF do Cliente</button>
               </div>
+            </div>
+            
+            <!-- Type Selector for Preview -->
+            <div class="flex gap-4 mt-4 border-b border-slate-200 pb-2">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="tripPreviewType" value="cliente" checked />
+                    <span class="text-sm font-semibold">Visão do Cliente</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="tripPreviewType" value="interno" />
+                    <span class="text-sm font-semibold">Visão Interna</span>
+                </label>
+            </div>
+
             </div>
             <div class="overflow-auto">
               <div id="tripProposalDocument"></div>

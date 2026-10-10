@@ -200,51 +200,39 @@
       // SEGURANÇA: Função que filtra e elimina estritamente qualquer campo interno de custo
       function sanitizeClientPayload(raw) {
         if (!raw) return null;
+        
+        // Compute validity from emissaoDate + validadeDias using standard Date math
+        let dataValidade = raw.emissaoDate || "";
+        if (raw.emissaoDate && raw.validadeDias) {
+            const date = new Date(raw.emissaoDate);
+            date.setDate(date.getDate() + Number(raw.validadeDias));
+            dataValidade = date.toISOString().slice(0, 10);
+        }
+
         return {
           id: raw.id,
-          numeroSequencial: raw.numeroSequencial || "ORC-001",
-          versao: raw.versao || 1,
-          cliente: raw.cliente || "Cliente",
-          clienteTelefone: raw.clienteTelefone || "",
-          clienteEmail: raw.clienteEmail || "",
-          numeroPassageiros: raw.numeroPassageiros || 44,
-          origem: raw.origem || "",
-          destino: raw.destino || "",
-          paradas: raw.paradas || "",
-          dataHoraIda: raw.dataHoraIda || "",
-          dataHoraVolta: raw.dataHoraVolta || "",
+          numeroSequencial: (raw.orcamentoNum || "") + " v" + (raw.orcamentoVersao || 1),
+          versao: raw.orcamentoVersao || 1,
+          cliente: raw.client || "Cliente",
+          numeroPassageiros: Number(raw.passengers || 40),
+          origem: raw.origin || "",
+          destino: raw.destination || "",
+          paradas: (raw.stops || []).join("\n"),
+          dataHoraIda: raw.departureDate || "",
+          dataHoraVolta: raw.returnDate || "",
           veiculo: raw.veiculo || null,
-          distanciaTotalKm: raw.distanciaTotalKm || 0,
-          valorCobrado: raw.valorCobrado || 0,
-          dataEmissao: raw.dataEmissao || "",
-          dataValidade: raw.dataValidade || "",
-          condicoesComerciais: raw.condicoesComerciais || {},
-          regrasViagem: raw.regrasViagem || "",
+          distanciaTotalKm: raw.totalKm || 0,
+          valorCobrado: raw.finalValue || 0,
+          dataEmissao: raw.emissaoDate || "",
+          dataValidade: dataValidade,
+          condicoesComerciais: {
+            formaPagamento: raw.paymentTerms || "",
+            incluso: raw.included || "",
+            naoIncluso: raw.notIncluded || "",
+            regrasGerais: raw.rules || ""
+          },
+          ...raw, // forward everything else for internal PDF
         };
-      }
-
-      function loadData() {
-        if (window.__GARCIA_ORCAMENTO__) {
-          return sanitizeClientPayload(window.__GARCIA_ORCAMENTO__);
-        }
-        const params = new URLSearchParams(window.location.search);
-        const orcId = params.get("id");
-        if (orcId) {
-          try {
-            const rawSession = localStorage.getItem("garcia_turismo_state_backup");
-            if (rawSession) {
-              const state = JSON.parse(rawSession);
-              const found = (state?.data?.orcamentos || []).find((o) => o.id === orcId);
-              if (found) {
-                const veiculo = (state?.data?.vehicles || []).find((v) => v.id === found.veiculoId);
-                return sanitizeClientPayload({ ...found, veiculo });
-              }
-            }
-          } catch (e) {
-            console.warn(e);
-          }
-        }
-        return null;
       }
 
       function render() {
