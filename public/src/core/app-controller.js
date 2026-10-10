@@ -94,6 +94,7 @@ const viagensController = createViagensController({
   logoPath: APP_CONFIG.logoPath,
   onRenderAll: () => renderAll(),
   saveFirestoreRecord,
+  removeFirestoreRecord,
   showToast,
 });
 
@@ -107,6 +108,8 @@ window.undoReportPayment = relatoriosController.undoReportPayment;
 window.markPendingAsPaid = relatoriosController.markPendingAsPaid;
 window.editTrip = viagensController.editTrip;
 window.previewTrip = viagensController.previewTrip;
+window.duplicateTrip = viagensController.duplicateTrip;
+window.deleteTrip = viagensController.deleteTrip;
 
 function applyLogo() {
   ["#loginLogoDesktop", "#loginLogoMobile", "#headerLogo", "#reportLogo"].forEach(
@@ -219,9 +222,9 @@ function bindDynamicActions() {
     if (action === "undo-report-payment") window.undoReportPayment(rowType, id);
     if (action === "mark-pending-paid") window.markPendingAsPaid(rowType, id);
     if (action === "edit-trip") window.editTrip(id);
-    if (action === "duplicate-trip") window.duplicateTrip(id, false);
-    if (action === "renew-trip") window.duplicateTrip(id, true);
+    if (action === "duplicate-trip") window.duplicateTrip(id);
     if (action === "preview-trip") window.previewTrip(id);
+    if (action === "delete-trip") window.deleteTrip(id);
   });
 }
 

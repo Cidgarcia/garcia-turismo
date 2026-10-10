@@ -202,22 +202,23 @@
           return;
         }
 
+        const dur = Number(doc.durationDays) || 1;
+        const m1 = doc.driver1Type === "dia" ? (Number(doc.driver1Value)||0) * dur : (Number(doc.driver1Value)||0);
+        const m2 = doc.driver2Type === "dia" ? (Number(doc.driver2Value)||0) * dur : (Number(doc.driver2Value)||0);
+
         const calc = calculateOrcamento({
-          valorCobrado: doc.valorCobrado || 0,
-          totalKm: doc.distanciaTotalKm || 0,
-          capacidadePassageiros: doc.numeroPassageiros || doc.veiculo?.capacidade || 46,
-          consumoKmPerLiter: doc.custoCombustivelConsumo || doc.veiculo?.consumoKmPorLitro || 3.5,
-          fuelPricePerLiter: doc.custoCombustivelLitro || 6.29,
-          maintenanceCostPerKm: doc.veiculo?.custoManutencaoKm || 0,
-          motorista1Valor: doc.custos?.motorista1Valor || 0,
-          motorista2Valor: doc.custos?.motorista2Valor || 0,
-          hospedagem: doc.custos?.hospedagem || 0,
-          antt: doc.custos?.antt || 0,
-          agua: doc.custos?.agua || 0,
-          stilmill: doc.custos?.stilmill || 0,
-          pedagios: doc.custos?.pedagios || 0,
-          outrosCustos: doc.outrosCustos || [],
-          aliquotaImpostoPercent: doc.aliquotaImpostoPercent ?? 6.0,
+          valorCobrado: doc.finalValue || 0,
+          totalKm: (Number(doc.totalKm) || 0) + (Number(doc.emptyKm) || 0),
+          capacidadePassageiros: Number(doc.passengers) || 46,
+          consumoKmPerLiter: Number(doc.consumptionKmPerLiter) || 3.5,
+          fuelPricePerLiter: Number(doc.fuelPrice) || 6.29,
+          motorista1Valor: m1,
+          motorista2Valor: m2,
+          hospedagem: Number(doc.lodgingCost) || 0,
+          antt: Number(doc.anttCost) || 0,
+          agua: Number(doc.waterCost) || 0,
+          seguro: Number(doc.insuranceCost) || 0,
+          outrosCustos: doc.otherCosts || [],
           metaMargemPercent: 50,
         });
 
@@ -228,12 +229,12 @@
             ? "badge-yellow"
             : "badge-red";
 
-        const outrosLinhas = (doc.outrosCustos || [])
+        const outrosLinhas = (doc.otherCosts || [])
           .map(
             (item) => `
             <tr>
               <td>Outro: ${escapeHtml(item.nome || "Custo Extra")}</td>
-              <td>${escapeHtml(item.observacao || "Adicional lançado")}</td>
+              <td>-</td>
               <td style="text-align: right; font-weight: 600;">${money(item.valor || 0)}</td>
             </tr>
           `,
@@ -251,13 +252,13 @@
                 Planilha de Custos &amp; Diagnóstico de Margem
               </h1>
               <p style="font-size: 13px; color: #64748b; margin: 4px 0 0 0;">
-                Orçamento <strong>#${escapeHtml(doc.numeroSequencial || "-")}</strong> · Versão ${doc.versao || 1} · Emissão: ${formatDateBR(doc.dataEmissao)}
+                Orçamento <strong>#${escapeHtml(doc.orcamentoNum || "-")}</strong> · Emissão: ${formatDateBR(doc.emissaoDate || doc.createdAt)}
               </p>
             </div>
             <div style="text-align: right;">
               <span class="badge-fair ${badgeClass}">${calc.fairPrice.label} (${calc.margemPercent.toFixed(1)}%)</span>
               <p style="font-size: 12px; color: #64748b; margin: 6px 0 0 0;">
-                Cliente: <strong>${escapeHtml(doc.cliente || "-")}</strong>
+                Cliente: <strong>${escapeHtml(doc.client || "-")}</strong>
               </p>
             </div>
           </header>
@@ -297,7 +298,7 @@
             <tbody>
               <tr>
                 <td>Combustível (Diesel S10)</td>
-                <td>${doc.distanciaTotalKm || 0} km ÷ ${calc.custosDetalhados.combustivelCents > 0 ? (doc.custoCombustivelConsumo || 3.5) : "-"} km/l × ${money(doc.custoCombustivelLitro || 6.29)}/L</td>
+                <td>${(Number(doc.totalKm) || 0) + (Number(doc.emptyKm) || 0)} km ÷ ${calc.custosDetalhados.combustivelCents > 0 ? (doc.consumptionKmPerLiter || 3.5) : "-"} km/l × ${money(doc.fuelPrice || 6.29)}/L</td>
                 <td style="text-align: right; font-weight: 600;">${money(calc.custosDetalhados.combustivelCents / 100)}</td>
               </tr>
               <tr>
@@ -329,26 +330,15 @@
                 <td>Suprimentos de bordo</td>
                 <td style="text-align: right; font-weight: 600;">${money(calc.custosDetalhados.aguaCents / 100)}</td>
               </tr>
-              <tr>
-                <td>Stilmill</td>
-                <td>Custo operacional mapeado</td>
-                <td style="text-align: right; font-weight: 600;">${money(calc.custosDetalhados.stilmillCents / 100)}</td>
-              </tr>
-              <tr>
-                <td>Pedágios</td>
-                <td>Tarifas das praças de pedágio do trajeto</td>
-                <td style="text-align: right; font-weight: 600;">${money(calc.custosDetalhados.pedagiosCents / 100)}</td>
-              </tr>
-              <tr>
-                <td>Manutenção / Desgaste Veículo</td>
-                <td>${doc.distanciaTotalKm || 0} km × ${money(doc.veiculo?.custoManutencaoKm || 0)}/km (óleo, pneus, freios)</td>
-                <td style="text-align: right; font-weight: 600;">${money(calc.custosDetalhados.manutencaoCents / 100)}</td>
-              </tr>
-              <tr>
-                <td>Impostos sobre Faturamento</td>
-                <td>Alíquota de ${doc.aliquotaImpostoPercent ?? 6.0}% do Simples sobre a receita bruta</td>
-                <td style="text-align: right; font-weight: 600;">${money(calc.impostos)}</td>
-              </tr>
+              ${
+                calc.custosDetalhados.seguroCents > 0
+                  ? `<tr>
+                      <td>Seguro</td>
+                      <td>Seguro viagem de passageiros</td>
+                      <td style="text-align: right; font-weight: 600;">${money(calc.custosDetalhados.seguroCents / 100)}</td>
+                    </tr>`
+                  : ""
+              }
               ${outrosLinhas}
               <tr>
                 <td>TOTAL DOS CUSTOS</td>

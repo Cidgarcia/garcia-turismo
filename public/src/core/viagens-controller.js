@@ -183,7 +183,20 @@ export function createViagensController({
       badge.textContent = statusObj.label;
       // Extract color classes from orcamento-calculator logic if possible, or define them here.
       // orcamento-calculator.js uses: textColor, bgClass, borderColor
-      badge.className = `px-3 py-1 rounded-full text-xs font-bold border ${statusObj.textColor || 'text-slate-600'} ${statusObj.bgClass || 'bg-slate-200'} ${statusObj.borderColor || 'border-slate-300'}`;
+        badge.className = "px-3 py-1 rounded-full text-xs font-bold border";
+        if (statusObj.status === "vermelho") {
+          badge.style.backgroundColor = "#fee2e2"; // red-100
+          badge.style.color = "#991b1b"; // red-800
+          badge.style.borderColor = "#fca5a5"; // red-300
+        } else if (statusObj.status === "amarelo") {
+          badge.style.backgroundColor = "#fef3c7"; // amber-100
+          badge.style.color = "#92400e"; // amber-800
+          badge.style.borderColor = "#fcd34d"; // amber-300
+        } else {
+          badge.style.backgroundColor = "#d1fae5"; // emerald-100
+          badge.style.color = "#065f46"; // emerald-800
+          badge.style.borderColor = "#6ee7b7"; // emerald-300
+        }
     }
 
     const indicator = $("#tripPrecoJustoIndicator");
@@ -235,7 +248,6 @@ export function createViagensController({
     $("#tripId").value = "";
     $("#tripEmissaoDate").value = today();
     $("#tripOrcamentoNum").value = "";
-    $("#tripOrcamentoVersao").value = "1";
     $("#tripValidadeDias").value = "7";
     // Keep the commercial conditions from the duplicated trip
     $("#tripDepartureDate").value = today();
@@ -391,7 +403,6 @@ export function createViagensController({
     const tripId = $("#tripId").value || uid();
     const emissaoDate = $("#tripEmissaoDate").value || today();
     const orcamentoNum = $("#tripOrcamentoNum").value || `${tripId.substring(0,6).toUpperCase()}`;
-    const orcamentoVersao = Number($("#tripOrcamentoVersao").value || 1);
     const validadeDias = Number($("#tripValidadeDias").value || 7);
     const responsible = $("#tripResponsible").value.trim();
     const client = $("#tripClient").value.trim();
@@ -443,7 +454,7 @@ export function createViagensController({
       return null;
     }
     return { 
-      id: tripId, responsible, client, origin, destination, stops, itinerary: [origin, ...stops, destination], vehicleIds: selectedVehicleIds, vehicleId: selectedVehicleIds[0] || "", departureDate, returnDate, durationDays, vehiclesQty, passengers, consumptionKmPerLiter, oneWayKm, totalKm, emptyKm, pricePerKm, baseValue, discount, finalValue, status, emissionDate: existing?.emissionDate || today(),
+      id: tripId, responsible, client, origin, destination, stops, itinerary: [origin, ...stops, destination], vehicleIds: selectedVehicleIds, vehicleId: selectedVehicleIds[0] || "", departureDate, returnDate, durationDays, vehiclesQty, passengers, consumptionKmPerLiter, oneWayKm, totalKm, emptyKm, pricePerKm, baseValue, discount, finalValue, status, emissaoDate, orcamentoNum, validadeDias,
       fuelPrice, driver1Type, driver1Value, driver2Type, driver2Value, lodgingCost, anttCost, waterCost, insuranceCost, otherCosts: [...tripOtherCostsState]
     };
   }
@@ -452,7 +463,7 @@ export function createViagensController({
     const selectedVehicles = getTripVehicleNames(trip);
     const selectedVehiclesMarkup = selectedVehicles.length ? `<p><strong>Veículos selecionados:</strong> ${escapeHtml(selectedVehicles.join(" • "))}</p>` : "";
     const discountRow = Number(trip.discount || 0) > 0 ? `<tr><td>Desconto</td><td>${escapeHtml(currency(trip.discount).replace("R$", "").trim())}</td></tr>` : "";
-    return `<div class="proposal-doc"><img src="${logoPath}" alt="Garcia Turismo" /><h1>PROPOSTA DE VIAGEM – GARCIA TURISMO</h1><p><strong>Responsável:</strong> ${escapeHtml(trip.responsible)}</p><p><strong>Origem:</strong> ${escapeHtml(trip.origin)}</p><p><strong>Destino:</strong> ${escapeHtml(trip.destination)}</p><p><strong>Duração:</strong> ${escapeHtml(trip.durationDays)} dia(s)</p><p><strong>Serviços Inclusos:</strong> Transporte (ida e volta)</p><p><strong>Quantidade de veículos:</strong> ${escapeHtml(tripVehicleLabel(trip.vehiclesQty))}</p>${selectedVehiclesMarkup}<p><strong>Total de km (ida e volta):</strong> ${escapeHtml(Number(trip.totalKm).toFixed(0))} km</p><p><strong>Valor Total:</strong> ${escapeHtml(currency(trip.baseValue))}</p><p><strong>Data de Saída:</strong> ${escapeHtml(formatDate(trip.departureDate))}</p><p><strong>Data de Retorno:</strong> ${escapeHtml(formatDate(trip.returnDate))}</p><p><strong>Data de Emissão:</strong> ${escapeHtml(formatDate(trip.emissionDate))}</p><table><thead><tr><th>Descrição</th><th>Valor (R$)</th></tr></thead><tbody><tr><td>Valor</td><td>${escapeHtml(currency(trip.baseValue).replace("R$", "").trim())}</td></tr>${discountRow}<tr><td>Valor final</td><td class="highlight-cell">${escapeHtml(currency(trip.finalValue).replace("R$", "").trim())}</td></tr></tbody></table><p><strong>Observações:</strong></p><p>- Oferta válida por 7 dias a partir da data de emissão.</p><p>- Valores incluem transporte (ida e volta) apenas.</p><p class="proposal-doc__contact"><strong>Contato:</strong></p><p>WhatsApp: (74) 98816-4009</p><p>E-mail: garciaturismoeviagens@gmail.com</p><div class="signature">__________________________________<br>Assinatura do Cliente / Data</div></div>`;
+    return `<div class="proposal-doc"><img src="${logoPath}" alt="Garcia Turismo" /><h1>PROPOSTA DE VIAGEM – GARCIA TURISMO</h1><p><strong>Responsável:</strong> ${escapeHtml(trip.responsible)}</p><p><strong>Origem:</strong> ${escapeHtml(trip.origin)}</p><p><strong>Destino:</strong> ${escapeHtml(trip.destination)}</p><p><strong>Duração:</strong> ${escapeHtml(trip.durationDays)} dia(s)</p><p><strong>Serviços Inclusos:</strong> Transporte (ida e volta)</p><p><strong>Quantidade de veículos:</strong> ${escapeHtml(tripVehicleLabel(trip.vehiclesQty))}</p>${selectedVehiclesMarkup}<p><strong>Total de km (ida e volta):</strong> ${escapeHtml(Number(trip.totalKm).toFixed(0))} km</p><p><strong>Valor Total:</strong> ${escapeHtml(currency(trip.baseValue))}</p><p><strong>Data de Saída:</strong> ${escapeHtml(formatDate(trip.departureDate))}</p><p><strong>Data de Retorno:</strong> ${escapeHtml(formatDate(trip.returnDate))}</p><p><strong>Data de Emissão:</strong> ${escapeHtml(formatDate(trip.emissaoDate))}</p><table><thead><tr><th>Descrição</th><th>Valor (R$)</th></tr></thead><tbody><tr><td>Valor</td><td>${escapeHtml(currency(trip.baseValue).replace("R$", "").trim())}</td></tr>${discountRow}<tr><td>Valor final</td><td class="highlight-cell">${escapeHtml(currency(trip.finalValue).replace("R$", "").trim())}</td></tr></tbody></table><p><strong>Observações:</strong></p><p>- Oferta válida por 7 dias a partir da data de emissão.</p><p>- Valores incluem transporte (ida e volta) apenas.</p><p class="proposal-doc__contact"><strong>Contato:</strong></p><p>WhatsApp: (74) 98816-4009</p><p>E-mail: garciaturismoeviagens@gmail.com</p><div class="signature">__________________________________<br>Assinatura do Cliente / Data</div></div>`;
   }
   function renderTripPreview() {
     if (!state.ui.tripPreviewData) {
@@ -497,16 +508,17 @@ export function createViagensController({
 
         return `<tr>
             <td>${formatDate(trip.departureDate)}</td>
-            <td>${escapeHtml(trip.orcamentoNum || "")} v${trip.orcamentoVersao || "1"}</td>
+            <td>${escapeHtml(trip.orcamentoNum || "")}</td>
             <td>${escapeHtml(trip.client)}</td>
             <td>${escapeHtml(trip.destination)}</td>
             <td class="font-bold">${currency(trip.finalValue)}</td>
             <td><span class="px-2 py-0.5 rounded-full text-xs font-bold ${statusObj.bgClass} ${statusObj.textColor}">${metrics.margemPercent.toFixed(1).replace(".",",")}%</span></td>
-            <td><div class="flex flex-col gap-1">${tripStatusBadge(trip)}<span class="text-[10px] text-slate-500">${validadeHtml}</span></div></td>
+            <td><div class="flex flex-col gap-1">${tripStatusBadge(trip.status)}<span class="text-[10px] text-slate-500">${validadeHtml}</span></div></td>
             <td class="text-right whitespace-nowrap">
                 <button class="text-slate-700 font-semibold mr-3" data-action="edit-trip" data-id="${escapeHtml(trip.id)}">Editar</button>
                 <button class="text-blue-600 font-semibold mr-3" data-action="duplicate-trip" data-id="${escapeHtml(trip.id)}">Duplicar</button>
-                <button class="text-red-600 font-semibold" data-action="preview-trip" data-id="${escapeHtml(trip.id)}">Abrir</button>
+                <button class="text-emerald-600 font-semibold mr-3" data-action="preview-trip" data-id="${escapeHtml(trip.id)}">Abrir</button>
+                <button class="text-red-600 font-semibold" data-action="delete-trip" data-id="${escapeHtml(trip.id)}">Excluir</button>
             </td>
         </tr>`;
     }).join("") || '<tr><td colspan="8" class="text-center muted py-6">Nenhuma viagem cadastrada.</td></tr>';
@@ -514,7 +526,7 @@ export function createViagensController({
   function renderTripDaySummary() {
     $("#tripSelectedDateLabel").textContent = formatDate(state.ui.tripSelectedDate);
     const trips = getTripsForDate(state.ui.tripSelectedDate);
-    $("#tripDaySummary").innerHTML = trips.map((trip) => `<div class="metric-card p-4"><div class="flex items-center justify-between gap-3 flex-wrap"><div class="font-semibold">${escapeHtml(trip.destination)}</div>${tripStatusBadge(trip)}</div><div class="muted text-sm mt-2">Cliente: ${escapeHtml(trip.client)}</div><div class="muted text-sm">Saída: ${formatDate(trip.departureDate)} • Retorno: ${formatDate(trip.returnDate)}</div><div class="muted text-sm">Veículos: ${escapeHtml(getTripVehicleNames(trip).join(" • ") || tripVehicleLabel(trip.vehiclesQty))}</div><div class="flex flex-wrap gap-2 mt-3"><button class="rounded-xl px-3 py-2 btn-secondary text-sm font-semibold" data-action="edit-trip" data-id="${escapeHtml(trip.id)}">Editar</button><button class="rounded-xl px-3 py-2 btn-primary text-sm font-semibold" data-action="preview-trip" data-id="${escapeHtml(trip.id)}">Abrir proposta</button></div></div>`).join("") || '<div class="metric-card p-4 muted">Nenhuma viagem cadastrada para esta data.</div>';
+    $("#tripDaySummary").innerHTML = trips.map((trip) => `<div class="metric-card p-4"><div class="flex items-center justify-between gap-3 flex-wrap"><div class="font-semibold">${escapeHtml(trip.destination)}</div>${tripStatusBadge(trip.status)}</div><div class="muted text-sm mt-2">Cliente: ${escapeHtml(trip.client)}</div><div class="muted text-sm">Saída: ${formatDate(trip.departureDate)} • Retorno: ${formatDate(trip.returnDate)}</div><div class="muted text-sm">Veículos: ${escapeHtml(getTripVehicleNames(trip).join(" • ") || tripVehicleLabel(trip.vehiclesQty))}</div><div class="flex flex-wrap gap-2 mt-3"><button class="rounded-xl px-3 py-2 btn-secondary text-sm font-semibold" data-action="edit-trip" data-id="${escapeHtml(trip.id)}">Editar</button><button class="rounded-xl px-3 py-2 btn-primary text-sm font-semibold" data-action="preview-trip" data-id="${escapeHtml(trip.id)}">Abrir proposta</button></div></div>`).join("") || '<div class="metric-card p-4 muted">Nenhuma viagem cadastrada para esta data.</div>';
   }
   function renderTripsCalendar() {
     const currentMonth = state.ui.tripMonth;
@@ -545,7 +557,6 @@ export function createViagensController({
     $("#tripId").value = trip.id;
     $("#tripEmissaoDate").value = trip.emissaoDate || trip.createdAt || today();
     $("#tripOrcamentoNum").value = trip.orcamentoNum || "";
-    $("#tripOrcamentoVersao").value = trip.orcamentoVersao || "1";
     $("#tripValidadeDias").value = trip.validadeDias || "7";
     $("#tripResponsible").value = trip.responsible; $("#tripClient").value = trip.client; $("#tripStatus").value = trip.status; $("#tripOrigin").value = trip.origin; $("#tripDestination").value = trip.destination; $("#tripStops").value = (trip.stops || []).join("\n"); $("#tripDepartureDate").value = trip.departureDate; $("#tripReturnDate").value = trip.returnDate; $("#tripDuration").value = trip.durationDays; $("#tripVehiclesQty").value = trip.vehiclesQty; setSelectedTripVehicleIds(trip.vehicleIds || []); $("#tripPassengers").value = trip.passengers || ""; $("#tripConsumption").value = trip.consumptionKmPerLiter || ""; $("#tripOneWayKm").value = trip.oneWayKm || ""; $("#tripTotalKm").value = trip.totalKm; $("#tripEmptyKm").value = trip.emptyKm || "0";
     $("#tripPricePerKm").value = Number(trip.pricePerKm || (Number(trip.totalKm) > 0 && Number(trip.vehiclesQty) > 0 ? Number(trip.baseValue) / (Number(trip.totalKm) * Number(trip.vehiclesQty)) : 0)).toFixed(2);
@@ -631,14 +642,22 @@ export function createViagensController({
     $("#tripForm").addEventListener("submit", async (event) => { event.preventDefault(); const payload = buildTripPayloadFromForm(); if (!payload) return; const index = state.data.trips.findIndex((trip) => trip.id === payload.id); try { await saveFirestoreRecord("Trip", "trips", payload, { prepend: true }); state.ui.tripPreviewData = payload; state.ui.tripMonth = payload.departureDate.slice(0, 7); state.ui.tripSelectedDate = payload.departureDate; onRenderAll(); renderTripPreview(); showToast(index >= 0 ? "Viagem atualizada com sucesso." : "Viagem cadastrada com sucesso.", "success"); } catch (error) { console.error("Erro ao salvar viagem:", error); showToast(error.message || "Não foi possível salvar a viagem.", "error"); } });
     $("#tripExportInternalPdfBtn")?.addEventListener("click", () => {
       const id = state.ui.tripPreviewData?.id;
-      if (id) window.open(`orcamento-interno.html?id=${id}`, '_blank');
-      else showToast("Gere a prévia da proposta antes de exportar.", "error");
+      if (id) {
+        localStorage.setItem("garcia_turismo_state_backup", JSON.stringify(state));
+        window.open(`orcamento-interno.html?id=${id}`, '_blank');
+      } else {
+        showToast("Gere a prévia da proposta antes de exportar.", "error");
+      }
     });
     
     $("#tripExportClientPdfBtn")?.addEventListener("click", () => {
       const id = state.ui.tripPreviewData?.id;
-      if (id) window.open(`orcamento-cliente.html?id=${id}`, '_blank');
-      else showToast("Gere a prévia da proposta antes de exportar.", "error");
+      if (id) {
+        localStorage.setItem("garcia_turismo_state_backup", JSON.stringify(state));
+        window.open(`orcamento-cliente.html?id=${id}`, '_blank');
+      } else {
+        showToast("Gere a prévia da proposta antes de exportar.", "error");
+      }
     });
     
     // Bind cost fields
@@ -655,7 +674,7 @@ export function createViagensController({
       syncTripDirectCosts();
     });
   }
-  function duplicateTrip(id, bumpVersion = false) {
+  function duplicateTrip(id) {
     const trip = state.data.trips.find((item) => item.id === id);
     if (!trip) return;
     editTrip(id);
@@ -664,17 +683,24 @@ export function createViagensController({
     $("#tripEmissaoDate").value = today();
     $("#tripValidadeDias").value = "7";
     $("#tripStatus").value = "Rascunho";
-    
-    if (bumpVersion) {
-        $("#tripOrcamentoVersao").value = String((Number(trip.orcamentoVersao) || 1) + 1);
-    } else {
-        $("#tripOrcamentoNum").value = "";
-        $("#tripOrcamentoVersao").value = "1";
-    }
+    $("#tripOrcamentoNum").value = "";
     
     state.ui.tripEditingId = null;
-    showToast(bumpVersion ? "Nova versão gerada. Ajuste e salve." : "Viagem duplicada. Ajuste e salve.", "success");
+    showToast("Viagem duplicada. Ajuste e salve.", "success");
   }
 
-  return { bindTrips, duplicateTrip, clearTripForm, editTrip, previewTrip, renderTripDaySummary, renderTripPreview, renderTripsCalendar, renderTripsTable };
+  async function deleteTrip(id) {
+    if (!confirm("Tem certeza que deseja excluir esta viagem/orçamento?")) return;
+    try {
+      await removeFirestoreRecord("Trip", "trips", id);
+      state.data.trips = state.data.trips.filter(t => t.id !== id);
+      onRenderAll();
+      showToast("Viagem excluída com sucesso.", "success");
+    } catch (e) {
+      console.error(e);
+      showToast("Erro ao excluir viagem: " + e.message, "error");
+    }
+  }
+
+  return { bindTrips, duplicateTrip, deleteTrip, clearTripForm, editTrip, previewTrip, renderTripDaySummary, renderTripPreview, renderTripsCalendar, renderTripsTable };
 }

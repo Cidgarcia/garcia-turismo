@@ -211,7 +211,7 @@
 
         return {
           id: raw.id,
-          numeroSequencial: (raw.orcamentoNum || "") + " v" + (raw.orcamentoVersao || 1),
+          numeroSequencial: raw.orcamentoNum || "",
           versao: raw.orcamentoVersao || 1,
           cliente: raw.client || "Cliente",
           numeroPassageiros: Number(raw.passengers || 40),
@@ -235,6 +235,35 @@
         };
       }
 
+      
+      function loadData() {
+        if (window.__GARCIA_ORCAMENTO__) return sanitizeClientPayload(window.__GARCIA_ORCAMENTO__);
+        const params = new URLSearchParams(window.location.search);
+        const orcId = params.get("id");
+        if (orcId) {
+          try {
+            const rawSession = localStorage.getItem("garcia_turismo_state_backup");
+            if (rawSession) {
+              const state = JSON.parse(rawSession);
+              const found = (state?.data?.trips || []).find((o) => o.id === orcId);
+              if (found) {
+                // Get vehicles
+                const veiculos = (state?.data?.vehicles || []).filter(v => (found.vehicleIds || []).includes(v.id));
+                const veiculoNome = veiculos.map(v => `${v.nome || v.modelo}`).join(" + ");
+                const capacidade = veiculos.reduce((acc, v) => acc + (Number(v.capacidade) || 0), 0) || 46;
+                const layout = veiculos[0]?.layout || "onibus_46";
+                const tipo = veiculos[0]?.tipo || "onibus";
+                found.veiculo = { nome: veiculoNome, capacidade, layout, tipo };
+                return sanitizeClientPayload(found);
+              }
+            }
+          } catch (e) {
+            console.warn(e);
+          }
+        }
+        return null;
+      }
+      
       function render() {
         const doc = loadData();
         const root = document.getElementById("clientDocRoot");

@@ -230,7 +230,7 @@ service cloud.firestore {
         'responsible', 'client', 'origin', 'destination', 'stops', 'itinerary',
         'vehicleIds', 'vehicleId', 'employeeId', 'departureDate', 'returnDate',
         'durationDays', 'vehiclesQty', 'oneWayKm', 'totalKm', 'pricePerKm',
-        'baseValue', 'discount', 'finalValue', 'status', 'emissionDate'
+        'baseValue', 'discount', 'finalValue', 'status', 'emissionDate', 'emissaoDate', 'orcamentoNum', 'validadeDias', 'passengers', 'consumptionKmPerLiter', 'emptyKm', 'fuelPrice', 'driver1Type', 'driver1Value', 'driver2Type', 'driver2Value', 'lodgingCost', 'anttCost', 'waterCost', 'insuranceCost', 'otherCosts'
       ])
         && requiredString(data, 'responsible', 140)
         && requiredString(data, 'client', 140)

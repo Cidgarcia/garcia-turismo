@@ -43,7 +43,7 @@ export function renderViagensTab() {
                                   <thead>
                     <tr>
                       <th>Saída</th>
-                      <th>Nº / Versão</th>
+                      <th>Nº Orçamento</th>
                       <th>Cliente</th>
                       <th>Destino</th>
                       <th>Valor</th>
@@ -70,14 +70,10 @@ export function renderViagensTab() {
                 <input type="hidden" id="tripId" />
                 <input type="hidden" id="tripEmissaoDate" />
 
-                <div class="xl:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 pb-2 mb-2 border-b border-slate-200">
+                <div class="xl:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4 pb-2 mb-2 border-b border-slate-200">
                   <div>
                     <label class="block text-sm font-medium mb-2">Nº Orçamento</label>
                     <input id="tripOrcamentoNum" class="field" type="text" placeholder="Automático" readonly />
-                  </div>
-                  <div>
-                    <label class="block text-sm font-medium mb-2">Versão</label>
-                    <input id="tripOrcamentoVersao" class="field" type="number" min="1" value="1" required />
                   </div>
                   <div>
                     <label class="block text-sm font-medium mb-2">Validade (dias)</label>
@@ -255,12 +251,12 @@ export function renderViagensTab() {
                 </div>
 
                 <!-- Barra Visual de Margem -->
-                <div class="relative w-full h-4 bg-slate-200 rounded-full overflow-hidden flex">
-                  <div style="width: 30%" class="h-full bg-red-500" title="Vermelho: < 30%"></div>
-                  <div style="width: 20%" class="h-full bg-amber-400" title="Amarelo: 30% a 49.9%"></div>
-                  <div style="width: 50%" class="h-full bg-emerald-500" title="Verde: >= 50%"></div>
+                <div class="relative w-full h-4 bg-slate-200 rounded-full overflow-hidden flex" style="background-color: #e2e8f0;">
+                  <div style="width: 30%; background-color: #ef4444;" class="h-full" title="Vermelho: < 30%"></div>
+                  <div style="width: 20%; background-color: #fbbf24;" class="h-full" title="Amarelo: 30% a 49.9%"></div>
+                  <div style="width: 50%; background-color: #10b981;" class="h-full" title="Verde: >= 50%"></div>
                   <!-- Indicador de Posição Atual -->
-                  <div id="tripPrecoJustoIndicator" class="absolute top-0 bottom-0 w-2 bg-slate-900 shadow-sm rounded-full transition-all duration-300" style="left: 0%"></div>
+                  <div id="tripPrecoJustoIndicator" class="absolute top-0 bottom-0 w-2 bg-slate-900 shadow-sm rounded-full transition-all duration-300" style="left: 0%; background-color: #0f172a;"></div>
                 </div>
                 <div class="flex justify-between text-[10px] text-slate-500 font-medium">
                   <span>0% (Prejuízo)</span>
