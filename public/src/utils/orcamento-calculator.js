@@ -93,41 +93,27 @@ export function calculateFuelCost({ totalKm, consumptionKmPerLiter, fuelPricePer
 }
 
 /**
- * Calcula custo de manutenção por km rodado em centavos.
- */
-export function calculateMaintenanceCost({ totalKm, maintenanceCostPerKm }) {
-  const km = Number(totalKm) || 0;
-  const costPerKm = Number(maintenanceCostPerKm) || 0;
-  if (km <= 0 || costPerKm <= 0) return 0;
-  return Math.round(km * costPerKm * 100);
-}
-
-/**
  * Consolida a soma dos custos diretos da viagem em centavos.
  */
 export function calculateDirectCosts({
   totalKm = 0,
   consumptionKmPerLiter = 0,
   fuelPricePerLiter = 0,
-  maintenanceCostPerKm = 0,
   motorista1Valor = 0,
   motorista2Valor = 0,
   hospedagem = 0,
   antt = 0,
   agua = 0,
-  stilmill = 0,
-  pedagios = 0,
+  seguro = 0,
   outrosCustos = [],
 }) {
   const combustivelCents = calculateFuelCost({ totalKm, consumptionKmPerLiter, fuelPricePerLiter });
-  const manutencaoCents = calculateMaintenanceCost({ totalKm, maintenanceCostPerKm });
   const motorista1Cents = toCents(motorista1Valor);
   const motorista2Cents = toCents(motorista2Valor);
   const hospedagemCents = toCents(hospedagem);
   const anttCents = toCents(antt);
   const aguaCents = toCents(agua);
-  const stilmillCents = toCents(stilmill);
-  const pedagiosCents = toCents(pedagios);
+  const seguroCents = toCents(seguro);
 
   const outrosCents = Array.isArray(outrosCustos)
     ? outrosCustos.reduce((acc, item) => acc + toCents(item?.valor), 0)
@@ -135,27 +121,23 @@ export function calculateDirectCosts({
 
   const totalDiretoCents =
     combustivelCents +
-    manutencaoCents +
     motorista1Cents +
     motorista2Cents +
     hospedagemCents +
     anttCents +
     aguaCents +
-    stilmillCents +
-    pedagiosCents +
+    seguroCents +
     outrosCents;
 
   return {
     combustivelCents,
-    manutencaoCents,
     motorista1Cents,
     motorista2Cents,
     motoristasTotalCents: motorista1Cents + motorista2Cents,
     hospedagemCents,
     anttCents,
     aguaCents,
-    stilmillCents,
-    pedagiosCents,
+    seguroCents,
     outrosCents,
     totalDiretoCents,
   };
@@ -163,25 +145,23 @@ export function calculateDirectCosts({
 
 /**
  * Calcula preço mínimo necessário para atingir a meta de margem desejada.
- * Fórmula com tributos:
- *   lucro = valorCobrado - custosDiretos - (valorCobrado * aliquotaImposto)
+ * Fórmula purificada de impostos:
+ *   lucro = valorCobrado - custosDiretos
  *   metaMargem = lucro / valorCobrado
- *   valorCobrado * (1 - aliquotaImposto - metaMargem) = custosDiretos
- *   valorCobrado = custosDiretos / (1 - aliquotaImposto - metaMargem)
+ *   valorCobrado * (1 - metaMargem) = custosDiretos
+ *   valorCobrado = custosDiretos / (1 - metaMargem)
  */
 export function calculateSuggestedPriceForTarget({
   custosDiretosCents,
   metaMargemPercent = 50,
-  aliquotaImpostoPercent = 0,
 }) {
   const directCents = Number(custosDiretosCents) || 0;
   if (directCents <= 0) return 0;
 
   const metaDecimal = (Number(metaMargemPercent) || 0) / 100;
-  const impostoDecimal = (Number(aliquotaImpostoPercent) || 0) / 100;
-  const divisor = 1 - metaDecimal - impostoDecimal;
+  const divisor = 1 - metaDecimal;
 
-  if (divisor <= 0) return 0; // Margem inatingível matematicamente com essa carga de impostos
+  if (divisor <= 0) return 0;
   return Math.round(directCents / divisor);
 }
 
@@ -235,15 +215,16 @@ export function evaluateOrcamentoValidity({
   const isExpirado =
     Boolean(validadeCalculada) &&
     dataReferencia > validadeCalculada &&
-    status !== "aprovado" &&
-    status !== "recusado";
+    status !== "Confirmada" &&
+    status !== "Realizada" &&
+    status !== "Cancelada";
 
   return {
     dataEmissao,
     diasValidade,
     dataValidade: validadeCalculada,
     isExpirado,
-    statusExibicao: isExpirado ? "expirado" : status,
+    statusExibicao: isExpirado ? "Expirada" : status,
   };
 }
 
@@ -258,16 +239,13 @@ export function calculateOrcamento({
   consumoKmPerLiter = 0,
   consumptionKmPerLiter,
   fuelPricePerLiter = 0,
-  maintenanceCostPerKm = 0,
   motorista1Valor = 0,
   motorista2Valor = 0,
   hospedagem = 0,
   antt = 0,
   agua = 0,
-  stilmill = 0,
-  pedagios = 0,
+  seguro = 0,
   outrosCustos = [],
-  aliquotaImpostoPercent = 0,
   metaMargemPercent = DEFAULT_THRESHOLDS.targetMargin,
   thresholds = DEFAULT_THRESHOLDS,
 }) {
@@ -281,26 +259,17 @@ export function calculateOrcamento({
     totalKm: km,
     consumptionKmPerLiter: finalConsumption,
     fuelPricePerLiter,
-    maintenanceCostPerKm,
     motorista1Valor,
     motorista2Valor,
     hospedagem,
     antt,
     agua,
-    stilmill,
-    pedagios,
+    seguro,
     outrosCustos,
   });
 
-  // Impostos sobre faturamento
-  const impostoAliq = Math.max(Number(aliquotaImpostoPercent) || 0, 0);
-  const impostosCents =
-    valorCobradoCents > 0 && impostoAliq > 0
-      ? Math.round(valorCobradoCents * (impostoAliq / 100))
-      : 0;
-
-  // Custo Total = Custos Diretos + Impostos sobre faturamento
-  const custoTotalCents = directCosts.totalDiretoCents + impostosCents;
+  // Custo Total = Apenas custos diretos
+  const custoTotalCents = directCosts.totalDiretoCents;
 
   // Lucro = Valor Cobrado - Custo Total
   const lucroCents = valorCobradoCents - custoTotalCents;
@@ -317,7 +286,6 @@ export function calculateOrcamento({
   const precoSugeridoMetaCents = calculateSuggestedPriceForTarget({
     custosDiretosCents: directCosts.totalDiretoCents,
     metaMargemPercent,
-    aliquotaImpostoPercent: impostoAliq,
   });
 
   // Indicadores unitários (tratam divisão por zero)
@@ -342,24 +310,20 @@ export function calculateOrcamento({
     valorCobradoCents,
     custoTotalCents,
     lucroCents,
-    impostosCents,
     precoSugeridoMetaCents,
     custosDetalhados: {
       ...directCosts,
-      impostosCents,
     },
 
     // Valores em Reais (Float para exibição formatada se necessário)
     valorCobrado: fromCents(valorCobradoCents),
     custoTotal: fromCents(custoTotalCents),
     lucro: fromCents(lucroCents),
-    impostos: fromCents(impostosCents),
     precoSugeridoMeta: fromCents(precoSugeridoMetaCents),
 
     // Margens e percentuais
     margemPercent: Number(margemPercent.toFixed(2)),
     metaMargemPercent,
-    aliquotaImpostoPercent: impostoAliq,
 
     // Métricas por km e por poltrona
     custoPorKmCents,

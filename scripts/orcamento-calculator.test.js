@@ -5,7 +5,6 @@ import {
   addDaysISO,
   calculateDirectCosts,
   calculateFuelCost,
-  calculateMaintenanceCost,
   calculateOrcamento,
   calculateSuggestedPriceForTarget,
   evaluateOrcamentoValidity,
@@ -37,13 +36,6 @@ test("cálculo de combustível e manutenção calcula proporcionalmente por km",
     fuelPricePerLiter: 6.2,
   });
   assert.equal(fuelCents, 62000);
-
-  // Manutenção: 350 km * R$ 0.45/km = R$ 157.50 = 15750 cents
-  const maintCents = calculateMaintenanceCost({
-    totalKm: 350,
-    maintenanceCostPerKm: 0.45,
-  });
-  assert.equal(maintCents, 15750);
 });
 
 test("teste de margem exata de 50%", () => {
@@ -52,9 +44,8 @@ test("teste de margem exata de 50%", () => {
   const result = calculateOrcamento({
     valorCobrado: 2000,
     motorista1Valor: 500,
-    hospedagem: 200,
-    pedagios: 300,
-    aliquotaImpostoPercent: 0,
+    hospedagem: 300,
+    agua: 200,
     metaMargemPercent: 50,
   });
 
@@ -70,7 +61,6 @@ test("teste de preço mínimo sugerido garante exatamente a meta de margem (50%)
   const suggestedPriceCents = calculateSuggestedPriceForTarget({
     custosDiretosCents: directCostsCents,
     metaMargemPercent: 50,
-    aliquotaImpostoPercent: 0,
   });
 
   assert.equal(suggestedPriceCents, 300000); // R$ 3.000,00
@@ -79,35 +69,11 @@ test("teste de preço mínimo sugerido garante exatamente a meta de margem (50%)
   const validation = calculateOrcamento({
     valorCobrado: fromCents(suggestedPriceCents),
     motorista1Valor: 1500,
-    aliquotaImpostoPercent: 0,
     metaMargemPercent: 50,
   });
 
   assert.equal(validation.margemPercent, 50);
   assert.equal(validation.fairPrice.status, "verde");
-});
-
-test("teste de preço mínimo sugerido com alíquota de impostos (ex: 6% Simples)", () => {
-  // Custo = R$ 1.000,00. Meta = 50%. Imposto = 6%.
-  // Preco = 1000 / (1 - 0.50 - 0.06) = 1000 / 0.44 = 2272.727... => R$ 2.272,73
-  const directCostsCents = 100000;
-  const suggestedPriceCents = calculateSuggestedPriceForTarget({
-    custosDiretosCents: directCostsCents,
-    metaMargemPercent: 50,
-    aliquotaImpostoPercent: 6,
-  });
-
-  assert.equal(suggestedPriceCents, 227273);
-
-  // Verificando que o lucro após imposto garante 50% de margem
-  const validation = calculateOrcamento({
-    valorCobrado: fromCents(suggestedPriceCents),
-    motorista1Valor: 1000,
-    aliquotaImpostoPercent: 6,
-    metaMargemPercent: 50,
-  });
-
-  assert.ok(Math.abs(validation.margemPercent - 50) < 0.05);
 });
 
 test("teste de margem negativa (prejuízo)", () => {
@@ -173,26 +139,26 @@ test("teste de expiração em 7 dias", () => {
 
   assert.equal(validade.dataValidade, "2026-10-08");
   assert.equal(validade.isExpirado, true);
-  assert.equal(validade.statusExibicao, "expirado");
+  assert.equal(validade.statusExibicao, "Expirada");
 
   // Dentro do prazo de 7 dias
   const dentroDoPrazo = evaluateOrcamentoValidity({
     dataEmissao: "2026-10-05",
     diasValidade: 7,
-    status: "enviado",
+    status: "Enviada",
     dataReferencia: "2026-10-09",
   });
   assert.equal(dentroDoPrazo.isExpirado, false);
-  assert.equal(dentroDoPrazo.statusExibicao, "enviado");
+  assert.equal(dentroDoPrazo.statusExibicao, "Enviada");
 
   // Orçamento já aprovado não expira
   const aprovado = evaluateOrcamentoValidity({
     dataEmissao: "2026-10-01",
     diasValidade: 7,
-    status: "aprovado",
+    status: "Confirmada",
     dataReferencia: "2026-10-09",
   });
   assert.equal(aprovado.isExpirado, false);
-  assert.equal(aprovado.statusExibicao, "aprovado");
+  assert.equal(aprovado.statusExibicao, "Confirmada");
 });
 
