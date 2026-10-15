@@ -3,9 +3,13 @@ import test from "node:test";
 
 import {
   calculateFuelMetrics,
+  calculateTankMetrics,
+  computeNewFuelLevel,
   filterFuelings,
+  filterVehiclesByFuelStatus,
   getFuelingDate,
   getPreviousFueling,
+  sortVehiclesByFuel,
   summarizeFuelings,
 } from "../public/src/utils/fueling-utils.js";
 
@@ -130,3 +134,74 @@ test("mantém compatibilidade com registros antigos sem fuelingDate", () => {
   assert.equal(getFuelingDate({ data: "2026-08-03" }), "2026-08-03");
   assert.equal(getFuelingDate({ createdAt: { seconds: 1785848400 } }), "2026-08-04");
 });
+
+test("calcula métricas do tanque e detecta reserva abaixo de 15%", () => {
+  const normal = calculateTankMetrics({ fuelLevelL: 30, tankCapacityL: 60 });
+  assert.equal(normal.percent, 50);
+  assert.equal(normal.isReserve, false);
+  assert.equal(normal.hasCapacity, true);
+
+  const reserve = calculateTankMetrics({ fuelLevelL: 7, tankCapacityL: 60 });
+  assert.equal(reserve.percent, 11.7);
+  assert.equal(reserve.isReserve, true);
+
+  const exactReserveThreshold = calculateTankMetrics({ fuelLevelL: 9, tankCapacityL: 60 }); // 15%
+  assert.equal(exactReserveThreshold.isReserve, false);
+
+  const empty = calculateTankMetrics({ fuelLevelL: 0, tankCapacityL: 0 });
+  assert.equal(empty.hasCapacity, false);
+  assert.equal(empty.percent, 0);
+  assert.equal(empty.isReserve, false);
+});
+
+test("calcula novo nível de combustível e limita na capacidade máxima", () => {
+  const vehicle = { tankCapacityL: 100, fuelLevelL: 40 };
+
+  const added = computeNewFuelLevel({ vehicle, litersAdded: 30, isFullTank: false });
+  assert.equal(added, 70);
+
+  const overflow = computeNewFuelLevel({ vehicle, litersAdded: 80, isFullTank: false });
+  assert.equal(overflow, 100);
+
+  const fullTankChecked = computeNewFuelLevel({ vehicle, litersAdded: 15, isFullTank: true });
+  assert.equal(fullTankChecked, 100);
+
+  const noCapacity = computeNewFuelLevel({ vehicle: { fuelLevelL: 20 }, litersAdded: 25 });
+  assert.equal(noCapacity, 45);
+});
+
+test("filtra veículos por status operacional e reserva", () => {
+  const vehicles = [
+    { id: "v1", nome: "Van 1", statusOperacional: "disponivel", tankCapacityL: 80, fuelLevelL: 40 },
+    { id: "v2", nome: "Ônibus 2", statusOperacional: "em_viagem", tankCapacityL: 200, fuelLevelL: 20 }, // 10% (reserva)
+    { id: "v3", nome: "Micro 3", statusOperacional: "manutencao", tankCapacityL: 100, fuelLevelL: 50 },
+  ];
+
+  const available = filterVehiclesByFuelStatus(vehicles, "disponiveis");
+  assert.deepEqual(available.map((v) => v.id), ["v1"]);
+
+  const unavailable = filterVehiclesByFuelStatus(vehicles, "indisponiveis");
+  assert.deepEqual(unavailable.map((v) => v.id), ["v2", "v3"]);
+
+  const reserve = filterVehiclesByFuelStatus(vehicles, "reserva");
+  assert.deepEqual(reserve.map((v) => v.id), ["v2"]);
+});
+
+test("ordena veículos por nível de combustível crescente, decrescente e nome", () => {
+  const vehicles = [
+    { id: "v1", nome: "Celta", tankCapacityL: 50, fuelLevelL: 40 }, // 80%
+    { id: "v2", nome: "Van", tankCapacityL: 100, fuelLevelL: 10 },  // 10%
+    { id: "v3", nome: "Ônibus", tankCapacityL: 200, fuelLevelL: 100 }, // 50%
+    { id: "v4", nome: "Sem Tanque", tankCapacityL: 0, fuelLevelL: 0 },
+  ];
+
+  const asc = sortVehiclesByFuel(vehicles, "fuel-asc");
+  assert.deepEqual(asc.map((v) => v.id), ["v2", "v3", "v1", "v4"]);
+
+  const desc = sortVehiclesByFuel(vehicles, "fuel-desc");
+  assert.deepEqual(desc.map((v) => v.id), ["v1", "v3", "v2", "v4"]);
+
+  const byName = sortVehiclesByFuel(vehicles, "name-asc");
+  assert.deepEqual(byName.map((v) => v.id), ["v1", "v3", "v4", "v2"]);
+});
+

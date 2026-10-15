@@ -131,3 +131,91 @@ export function summarizeFuelingsByVehicle(fuelings = []) {
     ...summarizeFuelings(vehicleFuelings),
   }));
 }
+
+export function calculateTankMetrics({ fuelLevelL = 0, tankCapacityL = 0 } = {}) {
+  const capacity = Number(tankCapacityL || 0);
+  const level = Number(fuelLevelL || 0);
+  const hasCapacity = capacity > 0;
+  const percent = hasCapacity ? Math.max(0, Math.min(100, (level / capacity) * 100)) : 0;
+  const isReserve = hasCapacity && percent < 15;
+
+  return {
+    capacity,
+    level,
+    percent: Number(percent.toFixed(1)),
+    isReserve,
+    hasCapacity,
+  };
+}
+
+export function computeNewFuelLevel({ vehicle = {}, litersAdded = 0, isFullTank = false } = {}) {
+  const capacity = Number(vehicle.tankCapacityL || 0);
+  const current = Number(vehicle.fuelLevelL || 0);
+  const added = Number(litersAdded || 0);
+
+  if (isFullTank && capacity > 0) {
+    return capacity;
+  }
+
+  if (capacity > 0) {
+    return Number(Math.min(capacity, current + added).toFixed(1));
+  }
+
+  return Number((current + added).toFixed(1));
+}
+
+export function filterVehiclesByFuelStatus(vehicles = [], filter = "todos") {
+  if (filter === "disponiveis") {
+    return vehicles.filter((v) => (v.statusOperacional || "disponivel") === "disponivel");
+  }
+  if (filter === "indisponiveis") {
+    return vehicles.filter((v) => (v.statusOperacional || "disponivel") !== "disponivel");
+  }
+  if (filter === "reserva") {
+    return vehicles.filter((v) => {
+      const { isReserve } = calculateTankMetrics({
+        fuelLevelL: v.fuelLevelL,
+        tankCapacityL: v.tankCapacityL,
+      });
+      return isReserve;
+    });
+  }
+  return [...vehicles];
+}
+
+export function sortVehiclesByFuel(vehicles = [], sortOrder = "fuel-asc") {
+  const list = [...vehicles];
+  if (sortOrder === "fuel-asc") {
+    return list.sort((a, b) => {
+      const capA = Number(a.tankCapacityL || 0);
+      const capB = Number(b.tankCapacityL || 0);
+      if (capA === 0 && capB === 0) return 0;
+      if (capA === 0) return 1;
+      if (capB === 0) return -1;
+      const pctA = ((Number(a.fuelLevelL || 0)) / capA) * 100;
+      const pctB = ((Number(b.fuelLevelL || 0)) / capB) * 100;
+      return pctA - pctB;
+    });
+  }
+  if (sortOrder === "fuel-desc") {
+    return list.sort((a, b) => {
+      const capA = Number(a.tankCapacityL || 0);
+      const capB = Number(b.tankCapacityL || 0);
+      if (capA === 0 && capB === 0) return 0;
+      if (capA === 0) return 1;
+      if (capB === 0) return -1;
+      const pctA = ((Number(a.fuelLevelL || 0)) / capA) * 100;
+      const pctB = ((Number(b.fuelLevelL || 0)) / capB) * 100;
+      return pctB - pctA;
+    });
+  }
+  if (sortOrder === "name-asc") {
+    return list.sort((a, b) => {
+      const nameA = String(a.nome || a.name || a.modelo || a.placa || "");
+      const nameB = String(b.nome || b.name || b.modelo || b.placa || "");
+      return nameA.localeCompare(nameB);
+    });
+  }
+  return list;
+}
+
