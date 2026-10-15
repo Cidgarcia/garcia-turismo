@@ -155,6 +155,7 @@ function renderAll() {
   dashboardController.renderKPIs();
   dashboardController.renderCharts();
   cadastrosController.renderCadastros();
+  abastecimentosController.renderFuelTanks();
   abastecimentosController.renderFuelHistory();
   viagensController.renderTripsCalendar();
   viagensController.renderTripDaySummary();
@@ -306,6 +307,7 @@ async function init() {
   despesasController.bindExpenseForm();
   employeePaymentsController.bindEmployeePayments();
   abastecimentosController.bindFuelForm();
+  abastecimentosController.bindFuelTanks();
   viagensController.bindTrips();
   relatoriosController.bindReports();
   cadastrosController.bindModalTriggers();

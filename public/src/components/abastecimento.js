@@ -1,11 +1,72 @@
 export function renderAbastecimentoTab() {
   return `
-    <section id="tab-abastecimento" class="tab-pane hidden-section fade-in">
+    <section id="tab-abastecimento" class="tab-pane hidden-section fade-in space-y-6">
+      <!-- Painel Visual de Combustível da Frota -->
+      <div class="card p-6 space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 class="text-2xl font-semibold">Painel de Combustível da Frota</h2>
+            <p class="muted mt-1">Nível atual dos tanques, alerta de reserva e disponibilidade operacional dos veículos.</p>
+          </div>
+          <div class="chip">Monitoramento Visual</div>
+        </div>
+
+        <!-- Resumo no topo: Total, Disponíveis e Reserva -->
+        <div class="fuel-kpi-bar">
+          <div class="metric-card p-4">
+            <div class="text-xs uppercase tracking-wide muted font-semibold">Total de Veículos</div>
+            <div id="fuelSummaryTotal" class="text-2xl font-bold mt-1">0</div>
+          </div>
+          <div class="metric-card p-4" style="border-left: 3px solid var(--success);">
+            <div class="text-xs uppercase tracking-wide muted font-semibold">Veículos Disponíveis</div>
+            <div id="fuelSummaryAvailable" class="text-2xl font-bold mt-1 text-emerald-600">0</div>
+          </div>
+          <div class="metric-card p-4" style="border-left: 3px solid var(--fuel-reserve);">
+            <div class="text-xs uppercase tracking-wide muted font-semibold">Em Reserva (&lt; 15%)</div>
+            <div id="fuelSummaryReserve" class="text-2xl font-bold mt-1 text-amber-600">0</div>
+          </div>
+        </div>
+
+        <!-- Filtros e Ordenação -->
+        <div class="fuel-filter-bar pt-2 border-t border-slate-100">
+          <div class="fuel-filter-group" role="group" aria-label="Filtrar por status dos veículos">
+            <button type="button" class="fuel-filter-btn active" data-fuel-filter="todos">
+              Todos (<span id="countFilterTodos">0</span>)
+            </button>
+            <button type="button" class="fuel-filter-btn" data-fuel-filter="disponiveis">
+              Disponíveis (<span id="countFilterDisponiveis">0</span>)
+            </button>
+            <button type="button" class="fuel-filter-btn" data-fuel-filter="indisponiveis">
+              Indisponíveis (<span id="countFilterIndisponiveis">0</span>)
+            </button>
+            <button type="button" class="fuel-filter-btn" data-fuel-filter="reserva">
+              Em Reserva (<span id="countFilterReserva">0</span>)
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2 text-sm">
+            <label for="fuelSortOrder" class="muted font-medium">Ordenar:</label>
+            <select id="fuelSortOrder" class="field py-1 px-3 text-sm" style="min-height: 38px; width: auto;">
+              <option value="fuel-asc">Menor combustível primeiro</option>
+              <option value="fuel-desc">Maior combustível primeiro</option>
+              <option value="name-asc">Nome / Modelo</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Grade de Tanques Visuais por Veículo -->
+        <div id="fuelTanksGrid" class="fuel-grid mt-4" aria-live="polite"></div>
+      </div>
+
+      <!-- Formulário de Abastecimento e Histórico -->
       <div class="grid grid-cols-1 xl:grid-cols-[1.18fr_.82fr] gap-6">
         <div class="card p-6 space-y-5">
-          <div>
-            <h2 class="text-2xl font-semibold">Abastecimento</h2>
-            <p class="muted mt-1">Controle de combustível, KM, média e pagamento.</p>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h3 class="text-xl font-semibold">Novo abastecimento</h3>
+              <p class="muted text-sm mt-1">Lançamento de combustível, cálculo de média e atualização de odômetro.</p>
+            </div>
+            <div class="chip">Lançamento</div>
           </div>
 
           <form id="fuelForm" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -35,13 +96,20 @@ export function renderAbastecimentoTab() {
             </div>
 
             <div>
-              <label class="block text-sm font-medium mb-2">Litros</label>
+              <label class="block text-sm font-medium mb-2">Litros abastecidos</label>
               <input id="fuelLiters" type="number" min="0.01" step="0.01" class="field" required />
             </div>
 
             <div>
               <label class="block text-sm font-medium mb-2">Valor total</label>
               <input id="fuelTotal" type="number" min="0.01" step="0.01" class="field" required />
+            </div>
+
+            <div class="md:col-span-2 xl:col-span-3 flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+              <input id="fuelFullTank" type="checkbox" class="w-4 h-4 cursor-pointer" />
+              <label for="fuelFullTank" class="text-sm font-semibold cursor-pointer">
+                Completou o tanque (marca o nível atual como 100% da capacidade)
+              </label>
             </div>
 
             <div>
@@ -105,7 +173,7 @@ export function renderAbastecimentoTab() {
               <input id="fuelChequeBank" type="text" class="field" placeholder="Banco do Brasil" />
             </div>
 
-            <div class="md:col-span-2 xl:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="md:col-span-2 xl:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4" aria-live="polite">
               <div class="metric-card p-4">
                 <div class="text-sm muted">Distância</div>
                 <div id="previewDistance" class="text-2xl font-semibold mt-1">0 km</div>
@@ -136,7 +204,7 @@ export function renderAbastecimentoTab() {
         <div class="card p-6">
           <div class="flex items-center justify-between gap-3 mb-4">
             <h3 class="text-xl font-semibold">Últimos abastecimentos</h3>
-            <div class="chip">Frota</div>
+            <div class="chip">Histórico recente</div>
           </div>
 
           <div id="fuelHistory" class="space-y-3"></div>
@@ -145,3 +213,4 @@ export function renderAbastecimentoTab() {
     </section>
   `;
 }
+

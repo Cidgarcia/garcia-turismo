@@ -23,4 +23,29 @@
   --shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 5px 15px rgba(0, 0, 0, 0.1);
   --focus-ring: 0 0 0 4px rgba(180, 35, 44, 0.14);
   --transition: 160ms ease;
+
+  /* Combustível e Tanque */
+  --fuel-yellow: #f5b301;
+  --fuel-yellow-wave: #e09f00;
+  --fuel-yellow-glow: rgba(245, 179, 1, 0.25);
+  --fuel-tank-bg: #e2e8f0;
+  --fuel-tank-border: #cbd5e1;
+  --fuel-reserve: #d97706;
+  --fuel-reserve-bg: #fffbeb;
+  --fuel-reserve-border: #fcd34d;
+
+  /* Status dos Veículos */
+  --status-available-bg: #ecfdf5;
+  --status-available-text: #065f46;
+  --status-available-border: #a7f3d0;
+  --status-unavailable-bg: #fef2f2;
+  --status-unavailable-text: #991b1b;
+  --status-unavailable-border: #fecaca;
+  --status-trip-bg: #eff6ff;
+  --status-trip-text: #1e40af;
+  --status-trip-border: #bfdbfe;
+  --status-maintenance-bg: #fffbeb;
+  --status-maintenance-text: #92400e;
+  --status-maintenance-border: #fde68a;
 }
+
