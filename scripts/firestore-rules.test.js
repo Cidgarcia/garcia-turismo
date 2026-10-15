@@ -404,3 +404,46 @@ test("admin não consegue burlar metadados, schema ou empresa", async () => {
     fuelingDate: "02/08/2026",
   }));
 });
+
+test("suporta tankCapacityL, fuelLevelL e statusOperacional em veículos e atualização por operador", async () => {
+  const admin = dbFor("admin");
+  const operator = dbFor("operator");
+  const vehicleRef = doc(admin, "vehicles", "vehicle-tank-test");
+
+  // Admin cria veículo com tanque e status operacional
+  await assertSucceeds(setDoc(vehicleRef, {
+    ...vehicle("admin", "tank"),
+    tankCapacityL: 300,
+    fuelLevelL: 150,
+    statusOperacional: "disponivel",
+  }));
+
+  // Operador atualiza nível de combustível e odômetro após abastecer
+  await assertSucceeds(updateDoc(doc(operator, "vehicles", "vehicle-tank-test"), {
+    fuelLevelL: 250,
+    kmAtual: 200,
+    updatedAt: serverTimestamp(),
+  }));
+
+  // Operador altera status para em_viagem
+  await assertSucceeds(updateDoc(doc(operator, "vehicles", "vehicle-tank-test"), {
+    statusOperacional: "em_viagem",
+    updatedAt: serverTimestamp(),
+  }));
+
+  // Rejeita statusOperacional inválido
+  await assertFails(updateDoc(doc(admin, "vehicles", "vehicle-tank-test"), {
+    statusOperacional: "invalido",
+    updatedAt: serverTimestamp(),
+  }));
+
+  // Rejeita fuelLevelL negativo
+  await assertFails(updateDoc(doc(admin, "vehicles", "vehicle-tank-test"), {
+    fuelLevelL: -10,
+    updatedAt: serverTimestamp(),
+  }));
+
+  // Limpeza
+  await assertSucceeds(deleteDoc(vehicleRef));
+});
+

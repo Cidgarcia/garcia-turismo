@@ -454,7 +454,7 @@ export function createViagensController({
       return null;
     }
     return { 
-      id: tripId, responsible, client, origin, destination, stops, itinerary: [origin, ...stops, destination], vehicleIds: selectedVehicleIds, vehicleId: selectedVehicleIds[0] || "", departureDate, returnDate, durationDays, vehiclesQty, passengers, consumptionKmPerLiter, oneWayKm, totalKm, emptyKm, pricePerKm, baseValue, discount, finalValue, status, emissaoDate, orcamentoNum, validadeDias,
+      id: tripId, responsible, client, origin, destination, stops, itinerary: [origin, ...stops, destination], vehicleIds: selectedVehicleIds, vehicleId: selectedVehicleIds[0] || "", departureDate, returnDate, durationDays, vehiclesQty, passengers, consumptionKmPerLiter, oneWayKm, totalKm, emptyKm, pricePerKm, baseValue, discount, finalValue, status, emissionDate: emissaoDate, emissaoDate, orcamentoNum, validadeDias,
       fuelPrice, driver1Type, driver1Value, driver2Type, driver2Value, lodgingCost, anttCost, waterCost, insuranceCost, otherCosts: [...tripOtherCostsState]
     };
   }

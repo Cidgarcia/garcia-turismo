@@ -54,7 +54,7 @@ export function createRelatoriosController({
       .map((item) => ({
         sourceRowType: "fuel",
         sourceId: item.id,
-        data: item.data,
+        data: getFuelingDate(item),
         type: "Combustível",
         category: "Abastecimento",
         description: `${item.litros} L • ${item.mediaKmLitro.toFixed(2)} km/l`,

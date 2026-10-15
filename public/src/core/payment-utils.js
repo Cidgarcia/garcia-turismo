@@ -26,8 +26,10 @@ export function calculateInvoiceMonth(date, closingDay, dueDay, offset = 0) {
     targetMonth -= 12;
     targetYear += 1;
   }
+  const maxDays = new Date(targetYear, targetMonth, 0).getDate();
+  const clampedDay = Math.min(Number(dueDay), maxDays);
   const mm = String(targetMonth).padStart(2, "0");
-  const dd = String(dueDay).padStart(2, "0");
+  const dd = String(clampedDay).padStart(2, "0");
   return {
     competencia: `${targetYear}-${mm}`,
     vencimentoDia: Number(dueDay),

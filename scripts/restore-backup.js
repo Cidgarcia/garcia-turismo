@@ -15,6 +15,7 @@ const BACKUP_COLLECTIONS = [
   "fuelings",
   "employees",
   "cards",
+  "orcamentos",
 ];
 
 function required(name) {

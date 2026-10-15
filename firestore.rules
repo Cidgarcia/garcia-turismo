@@ -92,7 +92,8 @@ service cloud.firestore {
       return hasOnly(data, [
         'companyId', 'createdAt', 'updatedAt', 'createdBy',
         'modelo', 'ano', 'cor', 'placa', 'kmAtual', 'lugares', 'status',
-        'nome', 'tipo', 'capacidade', 'layout', 'consumoKmPorLitro', 'custoManutencaoKm'
+        'nome', 'tipo', 'capacidade', 'layout', 'consumoKmPorLitro', 'custoManutencaoKm',
+        'tankCapacityL', 'fuelLevelL', 'statusOperacional'
       ])
         && requiredString(data, 'modelo', 120)
         && data.ano is number && data.ano >= 1900 && data.ano <= 2100
@@ -106,7 +107,10 @@ service cloud.firestore {
         && (!('capacidade' in data) || (data.capacidade is number && data.capacidade >= 1 && data.capacidade <= 100))
         && optionalString(data, 'layout', 60)
         && (!('consumoKmPorLitro' in data) || nonNegativeNumber(data, 'consumoKmPorLitro', 100))
-        && (!('custoManutencaoKm' in data) || nonNegativeNumber(data, 'custoManutencaoKm', 1000));
+        && (!('custoManutencaoKm' in data) || nonNegativeNumber(data, 'custoManutencaoKm', 1000))
+        && (!('tankCapacityL' in data) || nonNegativeNumber(data, 'tankCapacityL', 5000))
+        && (!('fuelLevelL' in data) || nonNegativeNumber(data, 'fuelLevelL', 5000))
+        && (!('statusOperacional' in data) || data.statusOperacional in ['disponivel', 'em_viagem', 'manutencao']);
     }
 
     function validEmployee(data) {
@@ -252,7 +256,10 @@ service cloud.firestore {
         && nonNegativeNumber(data, 'discount', 10000000)
         && nonNegativeNumber(data, 'finalValue', 10000000) && data.finalValue > 0
         && requiredString(data, 'status', 40)
-        && isoDate(data, 'emissionDate');
+        && (
+          ('emissionDate' in data && isoDate(data, 'emissionDate')) ||
+          ('emissaoDate' in data && isoDate(data, 'emissaoDate'))
+        );
     }
 
     function validCard(data) {
@@ -333,7 +340,7 @@ service cloud.firestore {
     match /vehicles/{vehicleId} {
       allow read: if sameCompany(resource.data.companyId);
       allow create: if isAdmin() && canCreate(request.resource.data) && validVehicle(request.resource.data);
-      allow update: if isAdmin() && canUpdate(request.resource.data) && validVehicle(request.resource.data);
+      allow update: if (isAdmin() || isOperator()) && canUpdate(request.resource.data) && validVehicle(request.resource.data);
       allow delete: if isAdmin() && sameCompany(resource.data.companyId);
     }
 
