@@ -41,6 +41,7 @@ export function renderCadastrosTab() {
                   <th>Veículo / Nome</th>
                   <th>Tipo</th>
                   <th>Lugares</th>
+                  <th>Tanque</th>
                   <th>Consumo</th>
                   <th>Manut./km</th>
                   <th>KM Atual</th>

@@ -81,6 +81,12 @@ export function createCadastrosController({
             </td>
             <td><span class="chip">${escapeHtml((item.tipo || "ônibus").toUpperCase())}</span></td>
             <td><strong>${item.capacidade || item.lugares || 0}</strong> pass.</td>
+            <td>
+              ${item.tankCapacityL ? `
+                <div class="font-semibold text-xs">${item.fuelLevelL ?? 0} L / ${item.tankCapacityL} L</div>
+                <div class="text-[11px] muted">${Math.round(((item.fuelLevelL ?? 0) / item.tankCapacityL) * 100)}%</div>
+              ` : '<span class="muted text-xs">Não informado</span>'}
+            </td>
             <td>${item.consumoKmPorLitro ? `${item.consumoKmPorLitro} km/l` : "-"}</td>
             <td>${item.custoManutencaoKm ? currency(item.custoManutencaoKm) : "R$ 0,00"}</td>
             <td>${item.kmAtual || 0} km</td>
@@ -230,13 +236,33 @@ export function createCadastrosController({
                 </div>
 
                 <div>
+                  <label class="block text-sm font-medium mb-2">Capacidade do Tanque (Litros)</label>
+                  <input type="number" min="0" max="5000" step="1" class="field" name="tankCapacityL" value="${item.tankCapacityL ?? ""}" placeholder="Ex.: 300">
+                  <span class="text-xs muted">Usado para exibir o tanque visual e alerta de reserva.</span>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Nível Atual de Combustível (Litros)</label>
+                  <input type="number" min="0" max="5000" step="1" class="field" name="fuelLevelL" value="${item.fuelLevelL ?? ""}" placeholder="Ex.: 150">
+                  <span class="text-xs muted">Estimativa atual. Atualizado automaticamente nos abastecimentos.</span>
+                </div>
+
+                <div>
                   <label class="block text-sm font-medium mb-2">KM Atual</label>
                   <input type="number" class="field" name="kmAtual" value="${item.kmAtual || 0}" required>
                 </div>
                 <div>
-                  <label class="block text-sm font-medium mb-2">Status</label>
+                  <label class="block text-sm font-medium mb-2">Status Operacional</label>
+                  <select class="field" name="statusOperacional">
+                    <option value="disponivel" ${(item.statusOperacional || "disponivel") === "disponivel" ? "selected" : ""}>Disponível</option>
+                    <option value="em_viagem" ${item.statusOperacional === "em_viagem" ? "selected" : ""}>Indisponível: Em viagem</option>
+                    <option value="manutencao" ${item.statusOperacional === "manutencao" ? "selected" : ""}>Indisponível: Manutenção</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium mb-2">Cadastro do Veículo</label>
                   <select class="field" name="status">
-                    <option value="ativo" ${item.status !== "inativo" ? "selected" : ""}>Ativo</option>
+                    <option value="ativo" ${item.status !== "inativo" ? "selected" : ""}>Ativo na frota</option>
                     <option value="inativo" ${item.status === "inativo" ? "selected" : ""}>Inativo</option>
                   </select>
                 </div>
@@ -342,6 +368,8 @@ export function createCadastrosController({
         recordType = "Vehicle";
         listName = "vehicles";
         const capacidade = Math.max(Number(data.capacidade || data.lugares || 0), 1);
+        const tankCapacityL = data.tankCapacityL !== "" && data.tankCapacityL !== undefined ? Math.max(0, Number(data.tankCapacityL)) : undefined;
+        const fuelLevelL = data.fuelLevelL !== "" && data.fuelLevelL !== undefined ? Math.max(0, Number(data.fuelLevelL)) : undefined;
         payload = {
           id,
           nome: data.nome || data.modelo,
@@ -356,6 +384,9 @@ export function createCadastrosController({
           layout: data.layout || "onibus_46",
           consumoKmPorLitro: Number(data.consumoKmPorLitro || 0),
           custoManutencaoKm: Number(data.custoManutencaoKm || 0),
+          ...(tankCapacityL !== undefined ? { tankCapacityL } : {}),
+          ...(fuelLevelL !== undefined ? { fuelLevelL } : {}),
+          statusOperacional: data.statusOperacional || "disponivel",
           status: data.status,
         };
       }
