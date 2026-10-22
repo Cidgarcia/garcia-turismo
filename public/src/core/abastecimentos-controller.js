@@ -12,6 +12,69 @@ import {
   summarizeFuelings,
 } from "../utils/fueling-utils.js";
 
+const ILLUSTRATIVE_FLEET = [
+  {
+    id: "demo-fiat-ducato",
+    nome: "FIAT DUCATO 2020 - CINZA",
+    modelo: "FIAT DUCATO",
+    ano: 2020,
+    cor: "CINZA",
+    placa: "RJA2C56",
+    tipo: "van",
+    statusOperacional: "disponivel",
+    fuelLevelL: 65,
+    tankCapacityL: 90,
+    kmAtual: 220000,
+    ultimaViagemKm: 240,
+    revisaoPendente: false,
+    motoristaNome: "Não escalado",
+    proximaRevisaoTexto: "Em 5.000 km",
+    ultimaRota: "Juazeiro → Casa Nova",
+    ultimoAbastecimentoTexto: "Sem registro",
+    isIllustrative: true,
+  },
+  {
+    id: "demo-scania-2003",
+    nome: "MARCOPOLO 1200 SCANIA 2003 - PRETO",
+    modelo: "MARCOPOLO 1200 SCANIA",
+    ano: 2003,
+    cor: "PRETO",
+    placa: "CZB0D53",
+    tipo: "onibus",
+    statusOperacional: "em_viagem",
+    fuelLevelL: 152,
+    tankCapacityL: 400,
+    kmAtual: 312000,
+    ultimaViagemKm: 672,
+    revisaoPendente: false,
+    motoristaNome: "Rodrigo",
+    proximaRevisaoTexto: "Em 3.000 km",
+    ultimaRota: "Juazeiro → Paulo Afonso",
+    ultimoAbastecimentoTexto: "23/08/2026 · 230 L",
+    isIllustrative: true,
+  },
+  {
+    id: "demo-mercedes-2006",
+    nome: "MARCOPOLO 1200 MERCEDES 2006 - BRANCO",
+    modelo: "MARCOPOLO 1200 MERCEDES",
+    ano: 2006,
+    cor: "BRANCO",
+    placa: "NFZ8J52",
+    tipo: "onibus",
+    statusOperacional: "manutencao",
+    fuelLevelL: 72,
+    tankCapacityL: 400,
+    kmAtual: 331349,
+    ultimaViagemKm: 0,
+    revisaoPendente: true,
+    motoristaNome: "Braga",
+    proximaRevisaoTexto: "Revisão pendente",
+    ultimaRota: "Juazeiro → Petrolina",
+    ultimoAbastecimentoTexto: "23/08/2026 · 270 L",
+    isIllustrative: true,
+  },
+];
+
 export function createAbastecimentosController({
   state,
   getVehicleName,
@@ -20,10 +83,13 @@ export function createAbastecimentosController({
   showToast,
 }) {
   let currentFuelFilter = "todos";
-  let currentFuelSort = "fuel-asc";
+  let currentSearchQuery = "";
+
   function renderFuelHistory() {
+    const historyEl = $("#fuelHistory");
+    if (!historyEl) return;
     const list = sortFuelingsChronologically(state.data.fuelings).reverse().slice(0, 6);
-    $("#fuelHistory").innerHTML =
+    historyEl.innerHTML =
       list.map((item) => `
         <div class="rounded-2xl border border-slate-200 bg-white/70 p-4">
           <div class="flex items-start justify-between gap-3">
@@ -41,228 +107,488 @@ export function createAbastecimentosController({
         </div>`).join("") || '<div class="muted text-sm">Sem abastecimentos ainda.</div>';
   }
 
-  function generateTankSvg({ vehicleId, fuelLevel, tankCapacity, percent, isReserve, vehicleName }) {
-    const clampedPercent = Math.max(0, Math.min(100, percent));
-    const totalHeight = 118;
-    const liquidHeight = (clampedPercent / 100) * totalHeight;
-    const liquidY = 130 - liquidHeight;
-    const ariaLabel = `Tanque de combustível do veículo ${vehicleName}: ${fuelLevel.toFixed(0)} L de ${tankCapacity} L (${percent.toFixed(0)}%)${isReserve ? " - Alerta de reserva" : ""}`;
-    const clipId = `tank-clip-${escapeHtml(String(vehicleId))}`;
-
-    return `
-      <div class="tank-svg-container">
-        <svg class="tank-svg" viewBox="0 0 100 140" role="img" aria-label="${escapeHtml(ariaLabel)}">
-          <defs>
-            <clipPath id="${clipId}">
-              <rect x="17" y="12" width="66" height="118" rx="10" />
-            </clipPath>
-          </defs>
-          <!-- Bocal superior do tanque -->
-          <rect x="42" y="4" width="16" height="8" rx="2" fill="#94a3b8" />
-          <rect x="40" y="2" width="20" height="3" rx="1.5" fill="#64748b" />
-          <!-- Corpo externo do tanque -->
-          <rect x="15" y="10" width="70" height="122" rx="12" fill="#f8fafc" stroke="#94a3b8" stroke-width="2.5" />
-          <!-- Conteúdo interno com cantos arredondados -->
-          <g clip-path="url(#${clipId})">
-            <!-- Fundo vazio do tanque -->
-            <rect x="17" y="12" width="66" height="118" fill="#f1f5f9" />
-            <!-- Líquido amarelo (#F5B301) preenchendo conforme o nível -->
-            <rect class="tank-liquid-rect" x="17" y="${liquidY.toFixed(1)}" width="66" height="${liquidHeight.toFixed(1)}" fill="#f5b301" />
-            ${clampedPercent > 0 && clampedPercent < 100 ? `
-              <!-- Leve ondulação na superfície do líquido -->
-              <path class="tank-liquid-wave" d="M 17 ${liquidY.toFixed(1)} Q 33.5 ${(liquidY - 2.5).toFixed(1)} 50 ${liquidY.toFixed(1)} T 83 ${liquidY.toFixed(1)} L 83 ${(liquidY + 6).toFixed(1)} L 17 ${(liquidY + 6).toFixed(1)} Z" fill="#e09f00" opacity="0.85" />
-            ` : ""}
-            <!-- Brilho no vidro esquerdo -->
-            <rect x="21" y="16" width="6" height="110" rx="3" fill="#ffffff" opacity="0.28" pointer-events="none" />
-            <!-- Marcações de nível (3/4, 1/2, 1/4) -->
-            <line x1="68" y1="41.5" x2="83" y2="41.5" stroke="#94a3b8" stroke-width="1.5" />
-            <text x="65" y="44" font-size="7" font-weight="700" text-anchor="end" fill="#64748b">3/4</text>
-            <line x1="66" y1="71" x2="83" y2="71" stroke="#94a3b8" stroke-width="2" />
-            <text x="63" y="73.5" font-size="7.5" font-weight="700" text-anchor="end" fill="#475569">1/2</text>
-            <line x1="68" y1="100.5" x2="83" y2="100.5" stroke="#94a3b8" stroke-width="1.5" />
-            <text x="65" y="103" font-size="7" font-weight="700" text-anchor="end" fill="#64748b">1/4</text>
-            <!-- Marca de reserva (< 15%) -->
-            <line x1="17" y1="112.3" x2="83" y2="112.3" stroke="#d97706" stroke-width="1.2" stroke-dasharray="2,2" opacity="0.9" />
-            <text x="22" y="110" font-size="7" font-weight="bold" fill="#d97706">R</text>
-          </g>
+  function renderVehicleTypeIcon(tipo = "onibus") {
+    const normalized = String(tipo || "onibus").toLowerCase();
+    if (normalized === "van" || normalized === "microonibus") {
+      return `
+        <svg class="fleet-vehicle-type-svg" viewBox="0 0 48 36" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 25V12a3 3 0 0 1 3-3h22l8 7 6 2a2 2 0 0 1 2 2v5h-4" />
+          <path d="M4 17h31" />
+          <path d="M18 9v8" />
+          <line x1="15" y1="25" x2="33" y2="25" />
+          <circle cx="11" cy="25" r="4" />
+          <circle cx="37" cy="25" r="4" />
         </svg>
-      </div>
+      `;
+    }
+    return `
+      <svg class="fleet-vehicle-type-svg" viewBox="0 0 44 40" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="7" y="4" width="30" height="26" rx="4" />
+        <path d="M7 12h30" />
+        <path d="M7 21h30" />
+        <path d="M4 13v5" />
+        <path d="M40 13v5" />
+        <circle cx="13" cy="25.5" r="1.5" fill="currentColor" />
+        <circle cx="31" cy="25.5" r="1.5" fill="currentColor" />
+        <path d="M12 30v5" />
+        <path d="M32 30v5" />
+      </svg>
     `;
+  }
+
+  function resolveCardData(vehicle) {
+    if (vehicle.isIllustrative) {
+      const tank = calculateTankMetrics({
+        fuelLevelL: vehicle.fuelLevelL,
+        tankCapacityL: vehicle.tankCapacityL,
+      });
+      return {
+        id: vehicle.id,
+        title: vehicle.nome,
+        placa: vehicle.placa,
+        tipo: vehicle.tipo,
+        status: vehicle.statusOperacional || "disponivel",
+        tank,
+        kmAtual: Number(vehicle.kmAtual || 0),
+        lastTripKm: Number(vehicle.ultimaViagemKm || 0),
+        revisaoPendente: Boolean(vehicle.revisaoPendente),
+        driverName: vehicle.motoristaNome || "Não escalado",
+        nextRevisionText: vehicle.proximaRevisaoTexto || "Em 5.000 km",
+        lastRouteText: vehicle.ultimaRota || "Sem rota recente",
+        lastFuelingText: vehicle.ultimoAbastecimentoTexto || "Sem registro",
+        isIllustrative: true,
+      };
+    }
+
+    const modelo = String(vehicle.modelo || vehicle.nome || "VEÍCULO").toUpperCase();
+    const ano = vehicle.ano ? ` ${vehicle.ano}` : "";
+    const cor = vehicle.cor ? ` - ${String(vehicle.cor).toUpperCase()}` : "";
+    const title = `${modelo}${ano}${cor}`;
+
+    const tank = calculateTankMetrics({
+      fuelLevelL: vehicle.fuelLevelL,
+      tankCapacityL: vehicle.tankCapacityL,
+    });
+
+    const vehicleTrips = (state.data.trips || [])
+      .filter((t) => {
+        const ids = Array.isArray(t.vehicleIds) ? t.vehicleIds : [t.vehicleId];
+        return ids.includes(vehicle.id) || t.vehicleId === vehicle.id;
+      })
+      .sort((a, b) => String(b.departureDate || "").localeCompare(String(a.departureDate || "")));
+    const lastTrip = vehicleTrips[0] || null;
+
+    const vehicleFuelings = sortFuelingsChronologically(
+      (state.data.fuelings || []).filter((f) => (f.veiculoId || f.vehicleId) === vehicle.id),
+    );
+    const lastFueling = vehicleFuelings.at(-1) || null;
+
+    const status = vehicle.statusOperacional || "disponivel";
+    const kmAtual = Number(vehicle.kmAtual || 0);
+    const lastTripKm = lastTrip
+      ? Number(lastTrip.totalKm || lastTrip.oneWayKm || 0)
+      : lastFueling
+        ? Number(lastFueling.distanciaPercorrida || 0)
+        : 0;
+
+    // Identifica motorista vinculado na última viagem ou funcionário
+    let driverName = vehicle.motoristaPadrao || "Não escalado";
+    if (lastTrip?.employeeId) {
+      const emp = (state.data.employees || []).find((e) => e.id === lastTrip.employeeId);
+      if (emp?.nome) driverName = emp.nome;
+    }
+
+    // Verifica se está em manutenção ou se precisa de revisão
+    const revisaoPendente = Boolean(vehicle.revisaoPendente) || status === "manutencao";
+    const remainderKm = 10000 - (kmAtual % 10000);
+    const nextRevisionText = revisaoPendente
+      ? "Revisão pendente"
+      : vehicle.proximaRevisaoTexto || `Em ${remainderKm.toLocaleString("pt-BR")} km`;
+
+    const lastRouteText = lastTrip && lastTrip.origin && lastTrip.destination
+      ? `${lastTrip.origin} → ${lastTrip.destination}`
+      : vehicle.ultimaRota || "Sem rota registrada";
+
+    const lastFuelingText = lastFueling
+      ? `${formatDate(getFuelingDate(lastFueling))} · ${Number(lastFueling.litros || 0)} L`
+      : "Sem registro";
+
+    return {
+      id: vehicle.id,
+      title,
+      placa: vehicle.placa || "SEM PLACA",
+      tipo: vehicle.tipo || "onibus",
+      status,
+      tank,
+      kmAtual,
+      lastTripKm,
+      revisaoPendente,
+      driverName,
+      nextRevisionText,
+      lastRouteText,
+      lastFuelingText,
+      isIllustrative: false,
+    };
+  }
+
+  function getActiveFleetSource() {
+    const realVehicles = (state.data.vehicles || []).filter((v) => v.status !== "inativo");
+    if (realVehicles.length > 0) {
+      return { vehicles: realVehicles, isIllustrative: false };
+    }
+    return { vehicles: ILLUSTRATIVE_FLEET, isIllustrative: true };
   }
 
   function renderFuelTanks() {
     const grid = $("#fuelTanksGrid");
     if (!grid) return;
 
-    const vehicles = state.data.vehicles || [];
-    const totalVehicles = vehicles.length;
-    const availableVehicles = vehicles.filter(
+    const { vehicles: rawVehicles, isIllustrative } = getActiveFleetSource();
+    const captionEl = $("#fleetDataSourceCaption");
+    if (captionEl) {
+      captionEl.textContent = isIllustrative ? "Dados ilustrativos" : "Dados em tempo real da frota";
+    }
+
+    const totalVehicles = rawVehicles.length;
+    const availableCount = rawVehicles.filter(
       (v) => (v.statusOperacional || "disponivel") === "disponivel",
     ).length;
-    const reserveVehicles = vehicles.filter((v) => {
-      const metrics = calculateTankMetrics({
-        fuelLevelL: v.fuelLevelL,
-        tankCapacityL: v.tankCapacityL,
-      });
-      return metrics.isReserve;
+    const tripCount = rawVehicles.filter(
+      (v) => (v.statusOperacional || "disponivel") === "em_viagem",
+    ).length;
+    const maintenanceCount = rawVehicles.filter(
+      (v) => (v.statusOperacional || "disponivel") === "manutencao",
+    ).length;
+    const reserveCount = rawVehicles.filter((v) => {
+      const m = calculateTankMetrics({ fuelLevelL: v.fuelLevelL, tankCapacityL: v.tankCapacityL });
+      return m.hasCapacity && m.percent < 20;
     }).length;
-    const unavailableVehicles = totalVehicles - availableVehicles;
 
-    if ($("#fuelSummaryTotal")) $("#fuelSummaryTotal").textContent = String(totalVehicles);
-    if ($("#fuelSummaryAvailable")) $("#fuelSummaryAvailable").textContent = String(availableVehicles);
-    if ($("#fuelSummaryReserve")) $("#fuelSummaryReserve").textContent = String(reserveVehicles);
+    const pct = (count) => (totalVehicles > 0 ? Math.round((count / totalVehicles) * 100) : 0);
 
-    if ($("#countFilterTodos")) $("#countFilterTodos").textContent = String(totalVehicles);
-    if ($("#countFilterDisponiveis")) $("#countFilterDisponiveis").textContent = String(availableVehicles);
-    if ($("#countFilterIndisponiveis")) $("#countFilterIndisponiveis").textContent = String(unavailableVehicles);
-    if ($("#countFilterReserva")) $("#countFilterReserva").textContent = String(reserveVehicles);
+    if ($("#fuelSummaryTotal")) {
+      $("#fuelSummaryTotal").textContent = `${totalVehicles} ${totalVehicles === 1 ? "veículo" : "veículos"}`;
+    }
+    if ($("#fuelSummaryAvailable")) {
+      $("#fuelSummaryAvailable").textContent = `${availableCount} ${availableCount === 1 ? "disponível" : "disponíveis"}`;
+    }
+    if ($("#fuelSummaryAvailablePct")) {
+      $("#fuelSummaryAvailablePct").textContent = `${pct(availableCount)}% da frota`;
+    }
+    if ($("#fuelSummaryTrip")) {
+      $("#fuelSummaryTrip").textContent = `${tripCount} em viagem`;
+    }
+    if ($("#fuelSummaryTripPct")) {
+      $("#fuelSummaryTripPct").textContent = `${pct(tripCount)}% da frota`;
+    }
+    if ($("#fuelSummaryMaintenance")) {
+      $("#fuelSummaryMaintenance").textContent = `${maintenanceCount} em manutenção`;
+    }
+    if ($("#fuelSummaryMaintenancePct")) {
+      $("#fuelSummaryMaintenancePct").textContent = `${pct(maintenanceCount)}% da frota`;
+    }
+    if ($("#fuelSummaryReserve")) {
+      $("#fuelSummaryReserve").textContent = String(reserveCount);
+    }
 
-    const filtered = filterVehiclesByFuelStatus(vehicles, currentFuelFilter);
-    const sorted = sortVehiclesByFuel(filtered, currentFuelSort);
+    // Filtra por status e busca textual
+    let filtered = rawVehicles.filter((v) => {
+      const status = v.statusOperacional || "disponivel";
+      if (currentFuelFilter === "disponivel" || currentFuelFilter === "disponiveis") {
+        return status === "disponivel";
+      }
+      if (currentFuelFilter === "em_viagem") {
+        return status === "em_viagem";
+      }
+      if (currentFuelFilter === "manutencao") {
+        return status === "manutencao";
+      }
+      if (currentFuelFilter === "indisponiveis") {
+        return status !== "disponivel";
+      }
+      if (currentFuelFilter === "reserva") {
+        const m = calculateTankMetrics({ fuelLevelL: v.fuelLevelL, tankCapacityL: v.tankCapacityL });
+        return m.hasCapacity && m.percent < 20;
+      }
+      return true;
+    });
 
-    if (!sorted.length) {
+    if (currentSearchQuery.trim()) {
+      const query = currentSearchQuery.trim().toLowerCase();
+      filtered = filtered.filter((v) => {
+        const target = `${v.nome || ""} ${v.modelo || ""} ${v.placa || ""} ${v.cor || ""} ${v.ano || ""}`.toLowerCase();
+        return target.includes(query);
+      });
+    }
+
+    if (!filtered.length) {
       grid.innerHTML = `
-        <div class="tank-empty-state col-span-full py-10">
+        <div class="tank-empty-state col-span-full py-12">
           <svg class="w-10 h-10 text-slate-300 mb-2 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
           <p class="font-semibold text-slate-700">Nenhum veículo encontrado para este filtro.</p>
-          <p class="muted text-sm mt-1">Selecione outro filtro ou cadastre novos veículos.</p>
+          <p class="muted text-sm mt-1">Limpe a busca ou selecione outro status.</p>
         </div>
       `;
       return;
     }
 
-    grid.innerHTML = sorted.map((vehicle) => {
-      const vehicleName = getVehicleName(vehicle.id);
-      const tank = calculateTankMetrics({
-        fuelLevelL: vehicle.fuelLevelL,
-        tankCapacityL: vehicle.tankCapacityL,
-      });
-      const status = vehicle.statusOperacional || "disponivel";
+    grid.innerHTML = filtered.map((rawVehicle) => {
+      const card = resolveCardData(rawVehicle);
+      const { tank, status } = card;
+      const pctValue = tank.hasCapacity ? Math.round(tank.percent) : 0;
 
-      let statusBadge = "";
-      if (status === "disponivel") {
-        statusBadge = '<span class="vehicle-status-badge vehicle-status--available">Disponível</span>';
-      } else if (status === "em_viagem") {
-        statusBadge = '<span class="vehicle-status-badge vehicle-status--trip">Em viagem</span>';
-      } else if (status === "manutencao") {
-        statusBadge = '<span class="vehicle-status-badge vehicle-status--maintenance">Manutenção</span>';
-      } else {
-        statusBadge = '<span class="vehicle-status-badge vehicle-status--unavailable">Indisponível</span>';
+      // Cor dinâmica da barra de progresso: >50% verde, 20-50% amarelo, <20% vermelho
+      let fuelColorClass = "fleet-fuel-bar--high";
+      if (!tank.hasCapacity || pctValue < 20) {
+        fuelColorClass = "fleet-fuel-bar--critical";
+      } else if (pctValue <= 50) {
+        fuelColorClass = "fleet-fuel-bar--medium";
       }
 
-      const vehicleFuelings = state.data.fuelings.filter(
-        (f) => (f.veiculoId || f.vehicleId) === vehicle.id,
-      );
-      const lastFueling = sortFuelingsChronologically(vehicleFuelings).at(-1);
-      const summary = summarizeFuelings(vehicleFuelings);
-
-      const lastFuelingText = lastFueling
-        ? `${formatDate(getFuelingDate(lastFueling))} (${Number(lastFueling.litros || 0)} L)`
-        : "Nenhum registro";
-
-      const avgConsumptionText = summary.averageConsumption > 0
-        ? `${summary.averageConsumption.toFixed(2)} km/l`
-        : "Em cálculo";
+      // Badge de status no canto direito com ponto colorido
+      let statusBadgeHtml = "";
+      let dotColorClass = "fleet-dot--available";
+      if (status === "disponivel") {
+        statusBadgeHtml = `<span class="fleet-status-pill fleet-status-pill--available"><span class="fleet-status-dot"></span>Disponível</span>`;
+        dotColorClass = "fleet-dot--available";
+      } else if (status === "em_viagem") {
+        statusBadgeHtml = `<span class="fleet-status-pill fleet-status-pill--trip"><span class="fleet-status-dot"></span>Em viagem</span>`;
+        dotColorClass = "fleet-dot--trip";
+      } else {
+        statusBadgeHtml = `<span class="fleet-status-pill fleet-status-pill--maintenance"><span class="fleet-status-dot"></span>Manutenção</span>`;
+        dotColorClass = "fleet-dot--maintenance";
+      }
 
       return `
-        <div class="fuel-vehicle-card ${tank.isReserve ? "is-reserve" : ""}" data-vehicle-id="${escapeHtml(vehicle.id)}">
-          <!-- Topo do card: Nome do veículo e Selo de status -->
-          <div class="flex items-start justify-between gap-2">
-            <div>
-              <div class="font-bold text-base text-slate-900 leading-tight">${escapeHtml(vehicleName)}</div>
-              <div class="text-xs muted mt-0.5">${escapeHtml(vehicle.placa || "")}${vehicle.tipo ? ` • ${escapeHtml(vehicle.tipo.toUpperCase())}` : ""}</div>
+        <article class="fleet-vehicle-card" data-vehicle-id="${escapeHtml(card.id)}">
+          <!-- 1. Topo do Card -->
+          <div class="fleet-card-top">
+            <div class="fleet-card-identity">
+              <div class="fleet-vehicle-icon-box">
+                ${renderVehicleTypeIcon(card.tipo)}
+              </div>
+              <div class="min-w-0">
+                <h2 class="fleet-vehicle-title">${escapeHtml(card.title)}</h2>
+                <p class="fleet-vehicle-plate">${escapeHtml(card.placa)}</p>
+              </div>
             </div>
-            <div class="flex-shrink-0">
-              ${statusBadge}
+            <div class="shrink-0">
+              ${statusBadgeHtml}
             </div>
           </div>
 
-          <!-- Centro: Visual do Tanque ou Estado Vazio -->
-          <div class="tank-visual-wrap">
-            ${tank.hasCapacity ? `
-              ${generateTankSvg({
-                vehicleId: vehicle.id,
-                fuelLevel: tank.level,
-                tankCapacity: tank.capacity,
-                percent: tank.percent,
-                isReserve: tank.isReserve,
-                vehicleName,
-              })}
-              <div class="flex-1 space-y-1.5">
-                <div class="flex items-center gap-2">
-                  <span class="text-2xl font-bold text-slate-800">${tank.percent.toFixed(0)}%</span>
-                  ${tank.isReserve ? `
-                    <span class="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-100 border border-amber-300 rounded-md px-2 py-0.5">
-                      Reserva
-                    </span>
-                  ` : ""}
-                </div>
-                <div class="text-sm font-semibold text-slate-700">
-                  ${tank.level.toFixed(0)} L <span class="text-xs muted font-normal">de ${tank.capacity} L</span>
-                </div>
-                <span class="text-[11px] muted italic block">Estimativa baseada nos registros</span>
-              </div>
-            ` : `
-              <div class="tank-empty-state w-full">
-                <svg class="w-8 h-8 text-slate-400 mb-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          <hr class="fleet-card-divider" />
+
+          <!-- 2. Seção de Combustível -->
+          <div class="fleet-fuel-section">
+            <div class="fleet-fuel-header">
+              <div class="fleet-fuel-label">
+                <svg class="fleet-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 22L15 22" />
+                  <path d="M4 9L14 9" />
+                  <path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18" />
+                  <path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5" />
                 </svg>
-                <span class="text-xs font-semibold text-slate-700">Capacidade do tanque não informada</span>
-                <span class="text-[11px] muted mt-0.5">Cadastre a capacidade para ativar o tanque visual.</span>
-                <button type="button" class="btn-secondary rounded-lg px-2.5 py-1 text-xs font-semibold mt-2.5" data-action="open-entity" data-entity-type="Vehicle" data-id="${escapeHtml(vehicle.id)}">
-                  Editar veículo
-                </button>
+                <span>Combustível</span>
               </div>
-            `}
+              <div class="fleet-fuel-percent">${pctValue}%</div>
+            </div>
+
+            <div
+              class="fleet-fuel-progress-track"
+              role="progressbar"
+              aria-valuenow="${pctValue}"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-label="Nível de combustível de ${escapeHtml(card.title)}: ${pctValue}%"
+            >
+              <div class="fleet-fuel-progress-fill ${fuelColorClass}" style="width: ${Math.max(pctValue, 4)}%"></div>
+            </div>
+
+            <div class="fleet-fuel-meta">
+              ${tank.hasCapacity ? `
+                <span><strong>${Number(tank.level).toFixed(0)} L</strong> de ${tank.capacity} L</span>
+                <span class="fleet-fuel-capacity">Capacidade do tanque: ${tank.capacity} L</span>
+              ` : `
+                <span class="text-amber-700 font-medium">Informe a capacidade do tanque</span>
+                <span class="fleet-fuel-capacity">Sem capacidade cadastrada</span>
+              `}
+            </div>
           </div>
 
-          <!-- Dados complementares: Último abastecimento, consumo médio e odômetro -->
-          <div class="space-y-1.5 text-xs text-slate-600 bg-slate-50/80 rounded-xl p-2.5 border border-slate-100 mb-3">
-            <div class="flex justify-between items-center">
-              <span class="muted">Último abastec.:</span>
-              <span class="font-medium text-slate-800">${escapeHtml(lastFuelingText)}</span>
+          <hr class="fleet-card-divider" />
+
+          <!-- 3. Seção de Quilometragem (Odômetro & Viagem / Alerta) -->
+          <div class="fleet-odometer-section">
+            <div class="fleet-odometer-block">
+              <div class="fleet-odometer-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 14l4-4" />
+                  <path d="M3.34 19a10 10 0 1 1 17.32 0" />
+                </svg>
+              </div>
+              <div>
+                <div class="fleet-odometer-label">Odômetro atual</div>
+                <div class="fleet-odometer-value">${card.kmAtual.toLocaleString("pt-BR")} km</div>
+              </div>
             </div>
-            <div class="flex justify-between items-center">
-              <span class="muted">Consumo médio:</span>
-              <span class="font-medium text-slate-800">${escapeHtml(avgConsumptionText)}</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="muted">Odômetro:</span>
-              <span class="font-medium text-slate-800">${Number(vehicle.kmAtual || 0).toLocaleString("pt-BR")} km</span>
+
+            <div class="fleet-odometer-divider" aria-hidden="true"></div>
+
+            <div class="fleet-trip-or-alert-block">
+              ${card.revisaoPendente ? `
+                <div class="fleet-revision-alert">
+                  <svg class="fleet-revision-alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                  </svg>
+                  <span>Revisão pendente</span>
+                </div>
+              ` : `
+                <div class="fleet-last-trip-box">
+                  <div class="fleet-road-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M9.5 3L5 21h4.5l1.5-18H9.5zm5 0L13 21h1.5L19 3h-4.5zM11.5 4h1v3h-1V4zm0 6h1v4h-1v-4zm0 7h1v3h-1v-3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="fleet-last-trip-label">Última viagem</div>
+                    <div class="fleet-last-trip-value">${card.lastTripKm > 0 ? `${card.lastTripKm.toLocaleString("pt-BR")} km` : "Sem viagem"}</div>
+                  </div>
+                </div>
+              `}
             </div>
           </div>
 
-          <!-- Rodapé do card: Seletor de status rápido e Botão abastecer -->
-          <div class="flex items-center justify-between gap-2 pt-2.5 border-t border-slate-100">
-            <div class="flex items-center gap-1.5">
-              <label class="text-xs muted font-medium">Status:</label>
-              <select class="quick-status-select" data-vehicle-action="change-status" data-id="${escapeHtml(vehicle.id)}">
+          <hr class="fleet-card-divider" />
+
+          <!-- 4. Resumo Operacional -->
+          <div class="fleet-operational-section">
+            <h3 class="fleet-operational-heading">Resumo operacional</h3>
+
+            <ul class="fleet-operational-list">
+              <li class="fleet-operational-row">
+                <span class="fleet-operational-key">
+                  <svg class="fleet-op-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clip-rule="evenodd" />
+                  </svg>
+                  <span>Motorista</span>
+                </span>
+                <span class="fleet-operational-val ${card.driverName !== "Não escalado" ? "is-strong" : ""}">
+                  ${escapeHtml(card.driverName)}
+                </span>
+              </li>
+
+              <li class="fleet-operational-row">
+                <span class="fleet-operational-key">
+                  <svg class="fleet-op-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                  </svg>
+                  <span>Próxima revisão</span>
+                </span>
+                <span class="fleet-operational-val ${card.revisaoPendente ? "is-danger" : ""}">
+                  ${escapeHtml(card.nextRevisionText)}
+                </span>
+              </li>
+
+              <li class="fleet-operational-row">
+                <span class="fleet-operational-key">
+                  <svg class="fleet-op-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+                  </svg>
+                  <span>Última rota</span>
+                </span>
+                <span class="fleet-operational-val">
+                  ${escapeHtml(card.lastRouteText)}
+                </span>
+              </li>
+            </ul>
+
+            <div class="fleet-last-fuel-row">
+              <span class="fleet-operational-key">
+                <svg class="fleet-op-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 22L15 22" />
+                  <path d="M4 9L14 9" />
+                  <path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18" />
+                  <path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5" />
+                </svg>
+                <span>Último abastecimento</span>
+              </span>
+              <span class="fleet-operational-val">
+                ${escapeHtml(card.lastFuelingText)}
+              </span>
+            </div>
+          </div>
+
+          <!-- 5. Rodapé de Ações do Card -->
+          <div class="fleet-card-actions">
+            <div class="fleet-quick-status-wrap">
+              <span class="fleet-quick-status-dot ${dotColorClass}" aria-hidden="true"></span>
+              <select
+                class="fleet-quick-status-select"
+                data-vehicle-action="change-status"
+                data-id="${escapeHtml(card.id)}"
+                aria-label="Alterar status de ${escapeHtml(card.title)}"
+              >
                 <option value="disponivel" ${status === "disponivel" ? "selected" : ""}>Disponível</option>
                 <option value="em_viagem" ${status === "em_viagem" ? "selected" : ""}>Em viagem</option>
                 <option value="manutencao" ${status === "manutencao" ? "selected" : ""}>Manutenção</option>
               </select>
             </div>
 
-            <button type="button" class="btn-secondary rounded-xl px-3 py-1.5 text-xs font-semibold flex items-center gap-1" data-vehicle-action="quick-fuel" data-id="${escapeHtml(vehicle.id)}">
-              ⛽ Abastecer
+            <button
+              type="button"
+              class="fleet-action-btn fleet-action-btn--details"
+              data-vehicle-action="details"
+              data-id="${escapeHtml(card.id)}"
+            >
+              <svg class="fleet-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <line x1="10" y1="9" x2="8" y2="9" />
+              </svg>
+              <span>Detalhes</span>
+            </button>
+
+            <button
+              type="button"
+              class="fleet-action-btn fleet-action-btn--fuel"
+              data-vehicle-action="quick-fuel"
+              data-id="${escapeHtml(card.id)}"
+            >
+              <svg class="fleet-btn-icon fleet-btn-icon--red" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M6 2a2 2 0 0 0-2 2v18h12V4a2 2 0 0 0-2-2H6zm0 3h8v5H6V5zm11 2l3.41 3.41A2 2 0 0 1 21 11.83V17a2.5 2.5 0 0 1-5 0v-3h-1v-2h1.5a1.5 1.5 0 0 1 1.5 1.5V17a.5.5 0 0 0 1 0v-5.17l-2.7-2.7L17 7z" />
+              </svg>
+              <span>Abastecer</span>
             </button>
           </div>
-        </div>
+        </article>
       `;
     }).join("");
   }
 
   async function handleQuickStatusChange(vehicleId, newStatus) {
-    const vehicle = state.data.vehicles.find((v) => v.id === vehicleId);
-    if (!vehicle) return;
-
     const statusLabels = {
       disponivel: "Disponível",
       em_viagem: "Em viagem",
       manutencao: "Manutenção",
     };
+
+    const demoVehicle = ILLUSTRATIVE_FLEET.find((v) => v.id === vehicleId);
+    if (demoVehicle && !(state.data.vehicles || []).some((v) => v.id === vehicleId)) {
+      demoVehicle.statusOperacional = newStatus;
+      demoVehicle.revisaoPendente = newStatus === "manutencao";
+      demoVehicle.proximaRevisaoTexto = newStatus === "manutencao" ? "Revisão pendente" : "Em 5.000 km";
+      renderFuelTanks();
+      showToast(`Status alterado para ${statusLabels[newStatus] || newStatus}.`, "success");
+      return;
+    }
+
+    const vehicle = state.data.vehicles.find((v) => v.id === vehicleId);
+    if (!vehicle) return;
 
     try {
       await saveFirestoreRecord("Vehicle", "vehicles", {
@@ -277,33 +603,85 @@ export function createAbastecimentosController({
     }
   }
 
+  function handleVehicleDetails(vehicleId) {
+    const realVehicle = (state.data.vehicles || []).find((v) => v.id === vehicleId);
+    if (realVehicle && typeof window.openEntityModal === "function") {
+      window.openEntityModal("vehicle", vehicleId);
+      return;
+    }
+
+    const demoVehicle = ILLUSTRATIVE_FLEET.find((v) => v.id === vehicleId);
+    if (demoVehicle) {
+      const card = resolveCardData(demoVehicle);
+      const modalRoot = $("#modalRoot");
+      const modalContent = $("#modalContent");
+      if (modalRoot && modalContent) {
+        modalRoot.classList.remove("hidden");
+        modalRoot.classList.add("flex");
+        modalContent.innerHTML = `
+          <div class="flex items-center justify-between mb-5">
+            <div>
+              <h3 class="text-2xl font-bold text-slate-900">${escapeHtml(card.title)}</h3>
+              <p class="text-sm muted">Placa: ${escapeHtml(card.placa)} · Odômetro: ${card.kmAtual.toLocaleString("pt-BR")} km</p>
+            </div>
+            <button type="button" data-action="close-modal" class="rounded-2xl px-4 py-2.5 btn-secondary font-semibold">Fechar</button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div class="metric-card p-4">
+              <div class="muted text-xs uppercase font-bold">Combustível Atual</div>
+              <div class="text-xl font-bold mt-1">${card.tank.level} L de ${card.tank.capacity} L (${Math.round(card.tank.percent)}%)</div>
+            </div>
+            <div class="metric-card p-4">
+              <div class="muted text-xs uppercase font-bold">Motorista Escalado</div>
+              <div class="text-xl font-bold mt-1">${escapeHtml(card.driverName)}</div>
+            </div>
+            <div class="metric-card p-4">
+              <div class="muted text-xs uppercase font-bold">Última Rota</div>
+              <div class="text-base font-semibold mt-1">${escapeHtml(card.lastRouteText)}</div>
+            </div>
+            <div class="metric-card p-4">
+              <div class="muted text-xs uppercase font-bold">Próxima Revisão</div>
+              <div class="text-base font-semibold mt-1 ${card.revisaoPendente ? "text-red-600" : ""}">${escapeHtml(card.nextRevisionText)}</div>
+            </div>
+          </div>
+          <div class="flex justify-end gap-3 mt-6">
+            <button type="button" data-action="close-modal" class="rounded-2xl px-5 py-3 btn-secondary font-semibold">Fechar</button>
+            <button type="button" class="rounded-2xl px-5 py-3 btn-primary font-semibold" onclick="window.closeModal(); window.openEntityModal('vehicle')">Cadastrar veículo na frota</button>
+          </div>
+        `;
+      }
+    }
+  }
+
   function handleQuickFuel(vehicleId) {
     const vehicleSelect = $("#fuelVehicle");
     if (vehicleSelect) {
-      vehicleSelect.value = vehicleId;
-      syncFuelLastKm();
-      calculateFuelPreview();
+      const hasOption = [...vehicleSelect.options].some((opt) => opt.value === vehicleId);
+      if (hasOption) {
+        vehicleSelect.value = vehicleId;
+        syncFuelLastKm();
+        calculateFuelPreview();
+      }
+      const formSection = $("#fuelLaunchSection") || $("#fuelForm");
+      if (formSection) formSection.scrollIntoView({ behavior: "smooth", block: "start" });
       const litersInput = $("#fuelLiters");
-      if (litersInput) litersInput.focus();
-      const form = $("#fuelForm");
-      if (form) form.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (litersInput) setTimeout(() => litersInput.focus(), 250);
     }
   }
 
   function bindFuelTanks() {
-    $$(".fuel-filter-btn[data-fuel-filter]").forEach((button) => {
-      button.addEventListener("click", () => {
-        currentFuelFilter = button.dataset.fuelFilter;
-        $$(".fuel-filter-btn[data-fuel-filter]").forEach((b) => b.classList.remove("active"));
-        button.classList.add("active");
+    const statusFilterSelect = $("#fleetStatusFilterSelect");
+    if (statusFilterSelect) {
+      statusFilterSelect.addEventListener("change", (e) => {
+        currentFuelFilter = e.target.value;
         renderFuelTanks();
       });
-    });
+    }
 
-    const sortSelect = $("#fuelSortOrder");
-    if (sortSelect) {
-      sortSelect.addEventListener("change", (e) => {
-        currentFuelSort = e.target.value;
+    const searchInput = $("#fleetSearchInput");
+    if (searchInput) {
+      searchInput.addEventListener("input", (e) => {
+        currentSearchQuery = e.target.value;
         renderFuelTanks();
       });
     }
@@ -318,9 +696,14 @@ export function createAbastecimentosController({
       });
 
       grid.addEventListener("click", (event) => {
-        const button = event.target.closest("button[data-vehicle-action='quick-fuel']");
-        if (button) {
-          handleQuickFuel(button.dataset.id);
+        const fuelBtn = event.target.closest("button[data-vehicle-action='quick-fuel']");
+        if (fuelBtn) {
+          handleQuickFuel(fuelBtn.dataset.id);
+          return;
+        }
+        const detailsBtn = event.target.closest("button[data-vehicle-action='details']");
+        if (detailsBtn) {
+          handleVehicleDetails(detailsBtn.dataset.id);
         }
       });
     }

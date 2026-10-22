@@ -536,3 +536,849 @@ tbody tr:hover { background: #fbfcfd; }
   .skeleton { animation: none !important; }
 }
 
+
+/* ===============================================================
+ * Gestão da Frota - Layout Moderno em Cards (Garcia Turismo)
+ * =============================================================== */
+body {
+  background: var(--page-bg);
+}
+
+/* 1. Barra de Navegação Superior (Header) */
+.fleet-top-header {
+  background: #ffffff;
+  border-bottom: 1px solid #e8edf3;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
+}
+
+.h-16 {
+  height: 4.25rem;
+}
+
+.garcia-brand-logo {
+  display: inline-flex;
+  flex-direction: column;
+  text-decoration: none;
+  line-height: 1;
+  user-select: none;
+}
+
+.garcia-brand-logo__main {
+  font-size: 1.65rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #dc2626;
+}
+
+.garcia-brand-logo__sub {
+  font-family: "Georgia", "Times New Roman", cursive, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: 1.15rem;
+  color: #dc2626;
+  margin-top: -4px;
+  margin-left: 16px;
+}
+
+.fleet-main-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 100%;
+}
+
+.fleet-nav-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 4.25rem;
+  padding: 0 1.15rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #475569;
+  font-size: 0.92rem;
+  font-weight: 600;
+  transition: color var(--transition), background var(--transition);
+}
+
+.fleet-nav-item:hover {
+  color: #0f172a;
+  background: rgba(241, 245, 249, 0.5);
+}
+
+.fleet-nav-item.active {
+  color: #dc2626;
+  background: transparent;
+  border-color: transparent;
+}
+
+.fleet-nav-item.active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0.5rem;
+  right: 0.5rem;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: #dc2626;
+}
+
+.fleet-nav-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.fleet-avatar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.fleet-avatar-btn:hover {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+.fleet-avatar-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.fleet-user-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  width: 220px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+  padding: 0.35rem;
+  z-index: 60;
+}
+
+.fleet-dropdown-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  padding: 0.55rem 0.75rem;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #334155;
+  transition: background var(--transition), color var(--transition);
+}
+
+.fleet-dropdown-item:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* 2. Cabeçalho da Página */
+.fleet-page-header {
+  padding-top: 0.35rem;
+}
+
+.fleet-page-title {
+  margin: 0;
+  font-size: 2.15rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: #0f172a;
+  line-height: 1.15;
+}
+
+.fleet-page-subtitle {
+  margin: 0.35rem 0 0;
+  font-size: 1.02rem;
+  color: #52637a;
+  font-weight: 400;
+}
+
+.fleet-page-caption {
+  display: inline-block;
+  margin-top: 0.25rem;
+  font-size: 0.78rem;
+  color: #8896a8;
+  font-weight: 500;
+}
+
+.fleet-btn-new-vehicle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.78rem 1.35rem;
+  border-radius: 12px;
+  border: 0;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.24);
+  transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+}
+
+.fleet-btn-new-vehicle:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.3);
+}
+
+/* 3. Barra de Métricas Rápidas e Filtros */
+.fleet-metrics-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #ffffff;
+  border: 1px solid #e6ebf2;
+  border-radius: 16px;
+  padding: 0.95rem 1.25rem;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.035);
+}
+
+.fleet-metrics-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.35rem;
+}
+
+.fleet-metric-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.fleet-metric-divider {
+  width: 1px;
+  height: 32px;
+  background: #e2e8f0;
+}
+
+.fleet-metric-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+}
+
+.fleet-metric-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.fleet-metric-icon--total {
+  color: #334155;
+}
+
+.fleet-metric-icon--available {
+  color: #16a34a;
+}
+
+.fleet-metric-icon--trip {
+  color: #0284c7;
+}
+
+.fleet-metric-icon--maintenance {
+  color: #ea8800;
+}
+
+.fleet-metric-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.fleet-metric-sub {
+  font-size: 0.76rem;
+  color: #7c8ba1;
+  margin-top: 0.1rem;
+}
+
+.fleet-search-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+.fleet-search-box {
+  position: relative;
+  width: 248px;
+}
+
+.fleet-search-icon {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: #64748b;
+  pointer-events: none;
+}
+
+.fleet-search-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 0.9rem 0 2.35rem;
+  border: 1px solid #d5dde7;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.86rem;
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.fleet-search-input::placeholder {
+  color: #7c8ba1;
+}
+
+.fleet-search-input:focus {
+  border-color: #dc2626;
+  box-shadow: var(--focus-ring);
+}
+
+.fleet-status-select {
+  height: 42px;
+  min-width: 160px;
+  padding: 0 2.1rem 0 0.9rem;
+  border: 1px solid #d5dde7;
+  border-radius: 10px;
+  background-color: #ffffff;
+  color: #0f172a;
+  font-size: 0.86rem;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.fleet-status-select:focus {
+  border-color: #dc2626;
+  box-shadow: var(--focus-ring);
+}
+
+/* 4. Grid de Cards dos Veículos (3 colunas responsivas) */
+.fleet-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 1.35rem;
+}
+
+@media (min-width: 768px) {
+  .fleet-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1120px) {
+  .fleet-cards-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.fleet-vehicle-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 1px solid #e6ebf2;
+  border-radius: 18px;
+  padding: 1.35rem;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.045);
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+}
+
+.fleet-vehicle-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+  border-color: #d5dde7;
+}
+
+/* Topo do Card */
+.fleet-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.fleet-card-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.fleet-vehicle-icon-box {
+  width: 44px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.fleet-vehicle-type-svg {
+  width: 42px;
+  height: 36px;
+}
+
+.fleet-vehicle-title {
+  margin: 0;
+  font-size: 0.94rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+.fleet-vehicle-plate {
+  margin: 0.25rem 0 0;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #64748b;
+  letter-spacing: 0.02em;
+}
+
+.fleet-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.32rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fleet-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.fleet-status-pill--available {
+  background: #e8f8ee;
+  color: #15803d;
+}
+.fleet-status-pill--available .fleet-status-dot {
+  background: #16a34a;
+}
+
+.fleet-status-pill--trip {
+  background: #e8f1ff;
+  color: #1d4ed8;
+}
+.fleet-status-pill--trip .fleet-status-dot {
+  background: #2563eb;
+}
+
+.fleet-status-pill--maintenance {
+  background: #fef3df;
+  color: #9a5b13;
+}
+.fleet-status-pill--maintenance .fleet-status-dot {
+  background: #ea8800;
+}
+
+.fleet-card-divider {
+  border: 0;
+  border-top: 1px solid #eef2f6;
+  margin: 1rem 0;
+}
+
+/* Seção de Combustível */
+.fleet-fuel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.fleet-fuel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.fleet-fuel-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.fleet-icon-sm {
+  width: 18px;
+  height: 18px;
+  color: #475569;
+}
+
+.fleet-fuel-percent {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1;
+}
+
+.fleet-fuel-progress-track {
+  width: 100%;
+  height: 14px;
+  border-radius: 999px;
+  background: #e6ebf1;
+  overflow: hidden;
+}
+
+.fleet-fuel-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease;
+}
+
+.fleet-fuel-bar--high {
+  background: #1fb854;
+}
+
+.fleet-fuel-bar--medium {
+  background: #f59e0b;
+}
+
+.fleet-fuel-bar--critical {
+  background: #d92626;
+}
+
+.fleet-fuel-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.fleet-fuel-meta strong {
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.fleet-fuel-capacity {
+  font-size: 0.76rem;
+  color: #7c8ba1;
+}
+
+/* Seção de Quilometragem (Odômetro & Viagem / Alerta) */
+.fleet-odometer-section {
+  display: grid;
+  grid-template-columns: 1.2fr 1px 1fr;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.fleet-odometer-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.fleet-odometer-icon {
+  width: 22px;
+  height: 22px;
+  color: #475569;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.fleet-odometer-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.fleet-odometer-value {
+  font-size: 1.38rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-top: 0.15rem;
+}
+
+.fleet-odometer-divider {
+  width: 1px;
+  height: 44px;
+  background: #eef2f6;
+}
+
+.fleet-trip-or-alert-block {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.fleet-last-trip-box {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.fleet-road-icon {
+  width: 22px;
+  height: 22px;
+  color: #475569;
+  flex-shrink: 0;
+}
+
+.fleet-last-trip-label {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.fleet-last-trip-value {
+  font-size: 0.94rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-top: 0.1rem;
+}
+
+.fleet-revision-alert {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #dc2626;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.fleet-revision-alert-icon {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  color: #dc2626;
+}
+
+/* Resumo Operacional */
+.fleet-operational-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.fleet-operational-heading {
+  margin: 0 0 0.65rem;
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.fleet-operational-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fleet-operational-row {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+
+.fleet-operational-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.fleet-op-icon {
+  width: 15px;
+  height: 15px;
+  color: #475569;
+  flex-shrink: 0;
+}
+
+.fleet-operational-val {
+  color: #334155;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fleet-operational-val.is-strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.fleet-operational-val.is-danger {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.fleet-last-fuel-row {
+  display: grid;
+  grid-template-columns: 156px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  margin-top: 0.7rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid #eef2f6;
+}
+
+/* Rodapé de Ações do Card */
+.fleet-card-actions {
+  display: grid;
+  grid-template-columns: 1.15fr 0.92fr 0.98fr;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.25rem;
+}
+
+.fleet-quick-status-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.fleet-quick-status-dot {
+  position: absolute;
+  left: 0.65rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.fleet-dot--available {
+  background: #16a34a;
+}
+
+.fleet-dot--trip {
+  background: #2563eb;
+}
+
+.fleet-dot--maintenance {
+  background: #ea8800;
+}
+
+.fleet-quick-status-select {
+  width: 100%;
+  height: 38px;
+  padding: 0 1.45rem 0 1.45rem;
+  border: 1px solid #d5dde7;
+  border-radius: 10px;
+  background-color: #ffffff;
+  color: #1e293b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  outline: none;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.fleet-quick-status-select:hover {
+  border-color: #94a3b8;
+  background-color: #f8fafc;
+}
+
+.fleet-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  height: 38px;
+  padding: 0 0.65rem;
+  border: 1px solid #d5dde7;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background var(--transition), border-color var(--transition), transform var(--transition);
+}
+
+.fleet-action-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+.fleet-btn-icon {
+  width: 14px;
+  height: 14px;
+  color: #475569;
+  flex-shrink: 0;
+}
+
+.fleet-btn-icon--red {
+  color: #dc2626;
+}
+
+@media (max-width: 767px) {
+  .fleet-main-nav {
+    overflow-x: auto;
+    gap: 0.15rem;
+  }
+  .fleet-nav-item {
+    padding: 0 0.65rem;
+    font-size: 0.82rem;
+  }
+  .fleet-metrics-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .fleet-metric-divider {
+    display: none;
+  }
+  .fleet-search-filters {
+    width: 100%;
+    margin-left: 0;
+  }
+  .fleet-search-box,
+  .fleet-status-select-wrap,
+  .fleet-status-select {
+    width: 100%;
+  }
+  .fleet-card-actions {
+    grid-template-columns: 1fr;
+  }
+}

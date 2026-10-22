@@ -1,65 +1,127 @@
 export function renderAbastecimentoTab() {
   return `
-    <section id="tab-abastecimento" class="tab-pane hidden-section fade-in space-y-6">
-      <!-- Painel Visual de Combustível da Frota -->
-      <div class="card p-6 space-y-5">
-        <div class="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 class="text-2xl font-semibold">Painel de Combustível da Frota</h2>
-            <p class="muted mt-1">Nível atual dos tanques, alerta de reserva e disponibilidade operacional dos veículos.</p>
+    <section id="tab-abastecimento" class="tab-pane fade-in space-y-6">
+      <!-- 2. Cabeçalho da Página -->
+      <div class="fleet-page-header flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 class="fleet-page-title">Gestão da frota</h1>
+          <p class="fleet-page-subtitle">Combustível, quilometragem e operação em um só lugar.</p>
+          <span id="fleetDataSourceCaption" class="fleet-page-caption">Dados ilustrativos</span>
+        </div>
+        <button
+          type="button"
+          class="fleet-btn-new-vehicle"
+          data-open-modal="vehicle"
+        >
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          <span>Novo veículo</span>
+        </button>
+      </div>
+
+      <!-- 3. Barra de Métricas Rápidas e Filtros -->
+      <div class="fleet-metrics-bar">
+        <div class="fleet-metrics-list">
+          <!-- Total na frota -->
+          <div class="fleet-metric-item">
+            <div class="fleet-metric-icon fleet-metric-icon--total" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="3" width="16" height="15" rx="2" />
+                <path d="M4 11h16" />
+                <path d="M8 15h.01" />
+                <path d="M16 15h.01" />
+                <path d="M6 18v3" />
+                <path d="M18 18v3" />
+              </svg>
+            </div>
+            <div>
+              <div id="fuelSummaryTotal" class="fleet-metric-title">3 veículos</div>
+              <div class="fleet-metric-sub">Total na frota</div>
+            </div>
           </div>
-          <div class="chip">Monitoramento Visual</div>
+
+          <div class="fleet-metric-divider" aria-hidden="true"></div>
+
+          <!-- Disponível -->
+          <div class="fleet-metric-item">
+            <div class="fleet-metric-icon fleet-metric-icon--available" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <div>
+              <div id="fuelSummaryAvailable" class="fleet-metric-title">1 disponível</div>
+              <div id="fuelSummaryAvailablePct" class="fleet-metric-sub">33% da frota</div>
+            </div>
+          </div>
+
+          <div class="fleet-metric-divider" aria-hidden="true"></div>
+
+          <!-- Em viagem -->
+          <div class="fleet-metric-item">
+            <div class="fleet-metric-icon fleet-metric-icon--trip" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+              </svg>
+            </div>
+            <div>
+              <div id="fuelSummaryTrip" class="fleet-metric-title">1 em viagem</div>
+              <div id="fuelSummaryTripPct" class="fleet-metric-sub">33% da frota</div>
+            </div>
+          </div>
+
+          <div class="fleet-metric-divider" aria-hidden="true"></div>
+
+          <!-- Em manutenção -->
+          <div class="fleet-metric-item">
+            <div class="fleet-metric-icon fleet-metric-icon--maintenance" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path fill-rule="evenodd" d="M12 6.75a5.25 5.25 0 016.775-5.025.75.75 0 01.313 1.248l-3.32 3.319c.063.475.276.934.641 1.299.365.365.824.578 1.3.64l3.318-3.319a.75.75 0 011.248.313 5.25 5.25 0 01-5.472 6.756c-1.018-.086-1.87.1-2.309.634L7.344 21.3A3.298 3.298 0 112.7 16.657l8.684-7.151c.533-.44.72-1.291.634-2.309A5.342 5.342 0 0112 6.75zM4.117 19.125a.75.75 0 01.75-.75h.008a.75.75 0 01.75.75v.008a.75.75 0 01-.75.75h-.008a.75.75 0 01-.75-.75v-.008z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <div>
+              <div id="fuelSummaryMaintenance" class="fleet-metric-title">1 em manutenção</div>
+              <div id="fuelSummaryMaintenancePct" class="fleet-metric-sub">33% da frota</div>
+            </div>
+          </div>
+          <span id="fuelSummaryReserve" class="hidden-section">0</span>
         </div>
 
-        <!-- Resumo no topo: Total, Disponíveis e Reserva -->
-        <div class="fuel-kpi-bar">
-          <div class="metric-card p-4">
-            <div class="text-xs uppercase tracking-wide muted font-semibold">Total de Veículos</div>
-            <div id="fuelSummaryTotal" class="text-2xl font-bold mt-1">0</div>
-          </div>
-          <div class="metric-card p-4" style="border-left: 3px solid var(--success);">
-            <div class="text-xs uppercase tracking-wide muted font-semibold">Veículos Disponíveis</div>
-            <div id="fuelSummaryAvailable" class="text-2xl font-bold mt-1 text-emerald-600">0</div>
-          </div>
-          <div class="metric-card p-4" style="border-left: 3px solid var(--fuel-reserve);">
-            <div class="text-xs uppercase tracking-wide muted font-semibold">Em Reserva (&lt; 15%)</div>
-            <div id="fuelSummaryReserve" class="text-2xl font-bold mt-1 text-amber-600">0</div>
-          </div>
-        </div>
-
-        <!-- Filtros e Ordenação -->
-        <div class="fuel-filter-bar pt-2 border-t border-slate-100">
-          <div class="fuel-filter-group" role="group" aria-label="Filtrar por status dos veículos">
-            <button type="button" class="fuel-filter-btn active" data-fuel-filter="todos">
-              Todos (<span id="countFilterTodos">0</span>)
-            </button>
-            <button type="button" class="fuel-filter-btn" data-fuel-filter="disponiveis">
-              Disponíveis (<span id="countFilterDisponiveis">0</span>)
-            </button>
-            <button type="button" class="fuel-filter-btn" data-fuel-filter="indisponiveis">
-              Indisponíveis (<span id="countFilterIndisponiveis">0</span>)
-            </button>
-            <button type="button" class="fuel-filter-btn" data-fuel-filter="reserva">
-              Em Reserva (<span id="countFilterReserva">0</span>)
-            </button>
+        <!-- Área de Busca e Filtros -->
+        <div class="fleet-search-filters">
+          <div class="fleet-search-box">
+            <svg class="fleet-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              id="fleetSearchInput"
+              type="search"
+              class="fleet-search-input"
+              placeholder="Buscar por modelo ou placa"
+              aria-label="Buscar por modelo ou placa"
+            />
           </div>
 
-          <div class="flex items-center gap-2 text-sm">
-            <label for="fuelSortOrder" class="muted font-medium">Ordenar:</label>
-            <select id="fuelSortOrder" class="field py-1 px-3 text-sm" style="min-height: 38px; width: auto;">
-              <option value="fuel-asc">Menor combustível primeiro</option>
-              <option value="fuel-desc">Maior combustível primeiro</option>
-              <option value="name-asc">Nome / Modelo</option>
+          <div class="fleet-status-select-wrap">
+            <select id="fleetStatusFilterSelect" class="fleet-status-select" aria-label="Filtrar por status">
+              <option value="todos">Todos os status</option>
+              <option value="disponivel">Disponível</option>
+              <option value="em_viagem">Em viagem</option>
+              <option value="manutencao">Manutenção</option>
+              <option value="reserva">Em reserva (&lt; 20%)</option>
             </select>
           </div>
         </div>
-
-        <!-- Grade de Tanques Visuais por Veículo -->
-        <div id="fuelTanksGrid" class="fuel-grid mt-4" aria-live="polite"></div>
       </div>
 
+      <!-- 4. Grid de Cards dos Veículos (3 colunas responsivas) -->
+      <div id="fuelTanksGrid" class="fleet-cards-grid" aria-live="polite"></div>
+
       <!-- Formulário de Abastecimento e Histórico -->
-      <div class="grid grid-cols-1 xl:grid-cols-[1.18fr_.82fr] gap-6">
+      <div id="fuelLaunchSection" class="grid grid-cols-1 xl:grid-cols-[1.18fr_.82fr] gap-6 pt-4">
         <div class="card p-6 space-y-5">
           <div class="flex items-center justify-between gap-3">
             <div>
@@ -213,4 +275,3 @@ export function renderAbastecimentoTab() {
     </section>
   `;
 }
-

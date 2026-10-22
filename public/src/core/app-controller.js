@@ -168,16 +168,50 @@ function renderAll() {
   viagensController.renderTripPreview();
 }
 
+function activateTab(tabName) {
+  state.currentTab = tabName;
+  $$(".nav-chip[data-tab]").forEach((item) => {
+    item.classList.toggle("active", item.dataset.tab === tabName);
+  });
+  $$(".tab-pane").forEach((pane) => pane.classList.add("hidden-section"));
+  const targetPane = $(`#tab-${tabName}`);
+  if (targetPane) targetPane.classList.remove("hidden-section");
+  const dropdown = $("#userDropdownMenu");
+  const menuBtn = $("#userMenuBtn");
+  if (dropdown) dropdown.classList.add("hidden-section");
+  if (menuBtn) menuBtn.setAttribute("aria-expanded", "false");
+}
+
 function bindTabs() {
   $$(".nav-chip[data-tab]").forEach((button) => {
     button.addEventListener("click", () => {
-      state.currentTab = button.dataset.tab;
-      $$(".nav-chip[data-tab]").forEach((item) => item.classList.remove("active"));
-      button.classList.add("active");
-      $$(".tab-pane").forEach((pane) => pane.classList.add("hidden-section"));
-      $(`#tab-${state.currentTab}`).classList.remove("hidden-section");
+      activateTab(button.dataset.tab);
     });
   });
+
+  $$("[data-tab-trigger]").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      activateTab(link.dataset.tabTrigger);
+    });
+  });
+
+  const userMenuBtn = $("#userMenuBtn");
+  const userDropdownMenu = $("#userDropdownMenu");
+  if (userMenuBtn && userDropdownMenu) {
+    userMenuBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const isHidden = userDropdownMenu.classList.toggle("hidden-section");
+      userMenuBtn.setAttribute("aria-expanded", String(!isHidden));
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest("#userMenuWrapper")) {
+        userDropdownMenu.classList.add("hidden-section");
+        userMenuBtn.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
 }
 
 function switchScreens() {

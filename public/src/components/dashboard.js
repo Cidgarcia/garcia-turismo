@@ -1,6 +1,6 @@
 export function renderDashboardTab() {
   return `
-    <section id="tab-inicio" class="tab-pane fade-in space-y-6">
+    <section id="tab-inicio" class="tab-pane hidden-section fade-in space-y-6">
       <div class="grid grid-cols-1 xl:grid-cols-[1.35fr_.65fr] gap-6">
         <div class="card p-6">
           <div class="flex flex-wrap items-center justify-between gap-4">

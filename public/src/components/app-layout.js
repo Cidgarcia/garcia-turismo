@@ -17,9 +17,9 @@ export function renderAppLayout() {
       ${renderNavigation()}
 
       <main class="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
+        ${renderAbastecimentoTab()}
         ${renderDashboardTab()}
         ${renderDespesasTab()}
-        ${renderAbastecimentoTab()}
         ${renderCadastrosTab()}
         ${renderViagensTab()}
         ${renderPendentesTab()}

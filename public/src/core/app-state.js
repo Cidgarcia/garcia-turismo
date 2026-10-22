@@ -1,5 +1,5 @@
 export const state = {
-  currentTab: "inicio",
+  currentTab: "abastecimento",
   charts: { categories: null, vehicles: null },
   ui: {
     tripMonth: new Date().toISOString().slice(0, 7),
