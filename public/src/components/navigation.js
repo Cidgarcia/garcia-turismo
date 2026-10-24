@@ -1,12 +1,18 @@
+import { APP_CONFIG } from "../config/app-config.js";
+
 export function renderNavigation() {
   return `
       <header class="fleet-top-header sticky top-0 z-30 no-print">
         <div class="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-4">
-          <!-- Lado Esquerdo: Logotipo Garcia Turismo estilizado em vermelho -->
+          <!-- Lado Esquerdo: Logotipo Oficial Garcia Turismo -->
           <div class="flex items-center gap-3 shrink-0">
-            <a href="#abastecimento" class="garcia-brand-logo" data-tab-trigger="abastecimento" aria-label="Garcia Turismo">
-              <span class="garcia-brand-logo__main">Garcia</span>
-              <span class="garcia-brand-logo__sub">Turismo</span>
+            <a href="#abastecimento" class="garcia-brand-logo-link" data-tab-trigger="abastecimento" aria-label="Garcia Turismo">
+              <img
+                id="headerLogo"
+                src="${APP_CONFIG.logoPath}"
+                alt="Garcia Turismo"
+                class="logo-header-official"
+              />
             </a>
           </div>
 
@@ -75,8 +81,8 @@ export function renderNavigation() {
 
             <div id="userDropdownMenu" class="fleet-user-dropdown hidden-section" role="menu">
               <div class="px-3 py-2 border-b border-slate-100">
-                <p class="text-xs font-bold text-slate-800">Painel Garcia Turismo</p>
-                <p class="text-[11px] text-slate-500">Módulos do sistema</p>
+                <p id="userProfileNameLabel" class="text-xs font-bold text-slate-800">Painel Garcia Turismo</p>
+                <p id="userProfileRoleLabel" class="text-[11px] text-slate-500">Módulos do sistema</p>
               </div>
               <button type="button" class="fleet-dropdown-item nav-chip" data-tab="inicio" role="menuitem">
                 <span>🏠 Visão geral</span>

@@ -20,11 +20,51 @@ function normalizeDocument(snapshot) {
 }
 
 function documentPayload(payload = {}) {
-  const { id, companyId, createdAt, updatedAt, createdBy, recordType, ...data } = payload;
+  const { id, companyId, createdAt, updatedAt, createdBy, recordType, isIllustrative, ...raw } = payload;
+  const data = {};
+  for (const [key, val] of Object.entries(raw)) {
+    if (val !== undefined) data[key] = val;
+  }
   if (data.veiculoId && !data.vehicleId) data.vehicleId = data.veiculoId;
   if (data.funcionarioId && !data.employeeId) data.employeeId = data.funcionarioId;
   if (Array.isArray(data.vehicleIds) && !data.vehicleId) data.vehicleId = data.vehicleIds[0] || "";
   return data;
+}
+
+export function formatFirestoreError(error, actionLabel = "salvar os dados") {
+  const code = String(error?.code || "");
+  const message = String(error?.message || "");
+
+  if (code === "unauthenticated" || message.includes("unauthenticated")) {
+    return "Você não está autenticado. Faça login novamente para continuar.";
+  }
+
+  if (code === "permission-denied" || message.includes("Missing or insufficient permissions")) {
+    const role = cachedProfile?.role || "desconhecido";
+    const company = cachedProfile?.companyId || "não vinculada";
+    console.error("[Diagnóstico Firestore Permission Denied]", {
+      actionLabel,
+      uid: cachedProfile?.uid,
+      email: cachedProfile?.email,
+      role,
+      companyId: company,
+      expectedCompanyId: FIREBASE_COMPANY_ID,
+      originalError: error,
+    });
+    if (company !== FIREBASE_COMPANY_ID) {
+      return `Sem permissão para ${actionLabel}: seu usuário está vinculado à empresa "${company}" e não a "${FIREBASE_COMPANY_ID}".`;
+    }
+    if (role !== "admin" && role !== "operador" && role !== "operator") {
+      return `Sem permissão para ${actionLabel}: seu perfil atual (${role}) não possui autorização para esta operação.`;
+    }
+    return `Permissão negada pelo Firestore ao ${actionLabel}. Verifique se todos os campos são válidos e se o seu perfil (${role}) possui autorização.`;
+  }
+
+  if (code === "unavailable" || message.includes("offline")) {
+    return `Falha de conexão com o servidor ao ${actionLabel}. Verifique sua internet e tente novamente.`;
+  }
+
+  return message || `Não foi possível ${actionLabel}.`;
 }
 
 async function firebaseContext() {
@@ -53,16 +93,34 @@ async function firebaseContext() {
 
 async function currentProfile() {
   const { auth, db, firestoreSdk } = await firebaseContext();
+  if (typeof auth.authStateReady === "function") {
+    await auth.authStateReady();
+  }
   const user = auth.currentUser;
-  if (!user) throw new Error("Sua sessão expirou. Entre novamente.");
+  if (!user) {
+    const err = new Error("Usuário não autenticado. Faça login para realizar esta operação.");
+    err.code = "unauthenticated";
+    throw err;
+  }
 
   if (cachedProfile?.uid === user.uid) return cachedProfile;
   const profileSnapshot = await firestoreSdk.getDoc(firestoreSdk.doc(db, "users", user.uid));
-  if (!profileSnapshot.exists()) throw new Error("Perfil de usuário não encontrado.");
+  if (!profileSnapshot.exists()) {
+    const err = new Error(`Perfil de autorização (users/${user.uid}) não encontrado no Firestore.`);
+    err.code = "permission-denied";
+    throw err;
+  }
 
   const profile = { uid: user.uid, email: user.email || "", ...profileSnapshot.data() };
-  if (profile.active !== true || profile.companyId !== FIREBASE_COMPANY_ID) {
-    throw new Error("Este usuário não possui acesso ativo à Garcia Turismo.");
+  if (profile.active !== true) {
+    const err = new Error("Seu perfil de usuário está inativo no sistema.");
+    err.code = "permission-denied";
+    throw err;
+  }
+  if (profile.companyId !== FIREBASE_COMPANY_ID) {
+    const err = new Error(`Usuário vinculado à empresa "${profile.companyId}" (esperado: "${FIREBASE_COMPANY_ID}").`);
+    err.code = "permission-denied";
+    throw err;
   }
 
   cachedProfile = profile;
@@ -97,9 +155,10 @@ async function createRecord(collectionName, payload, recordType = "") {
   const { db, firestoreSdk } = await firebaseContext();
   const id = String(payload?.id || firestoreSdk.doc(firestoreSdk.collection(db, collectionName)).id);
   const recordRef = firestoreSdk.doc(db, collectionName, id);
+  const cleanData = documentPayload(payload);
   const batch = firestoreSdk.writeBatch(db);
   batch.set(recordRef, {
-    ...documentPayload(payload),
+    ...cleanData,
     ...(recordType ? { recordType } : {}),
     companyId: profile.companyId,
     createdBy: profile.uid,
@@ -107,23 +166,48 @@ async function createRecord(collectionName, payload, recordType = "") {
     updatedAt: firestoreSdk.serverTimestamp(),
   });
   await writeAudit(batch, "create", collectionName, id, profile, firestoreSdk, db);
-  await batch.commit();
-  return { id, ...documentPayload(payload), ...(recordType ? { recordType } : {}) };
+  try {
+    await batch.commit();
+  } catch (error) {
+    const friendly = new Error(formatFirestoreError(error, `criar registro em ${collectionName}`));
+    friendly.code = error?.code;
+    friendly.cause = error;
+    throw friendly;
+  }
+  return {
+    id,
+    ...cleanData,
+    ...(recordType ? { recordType } : {}),
+    companyId: profile.companyId,
+    createdBy: profile.uid,
+  };
 }
 
 async function updateRecord(collectionName, id, payload, recordType = "") {
   const profile = await currentProfile();
   const { db, firestoreSdk } = await firebaseContext();
   const recordRef = firestoreSdk.doc(db, collectionName, String(id));
+  const cleanData = documentPayload(payload);
   const batch = firestoreSdk.writeBatch(db);
   batch.update(recordRef, {
-    ...documentPayload(payload),
+    ...cleanData,
     ...(recordType ? { recordType } : {}),
     updatedAt: firestoreSdk.serverTimestamp(),
   });
   await writeAudit(batch, "update", collectionName, String(id), profile, firestoreSdk, db);
-  await batch.commit();
-  return { id: String(id), ...documentPayload(payload), ...(recordType ? { recordType } : {}) };
+  try {
+    await batch.commit();
+  } catch (error) {
+    const friendly = new Error(formatFirestoreError(error, `atualizar registro em ${collectionName}`));
+    friendly.code = error?.code;
+    friendly.cause = error;
+    throw friendly;
+  }
+  return {
+    id: String(id),
+    ...cleanData,
+    ...(recordType ? { recordType } : {}),
+  };
 }
 
 async function deleteRecord(collectionName, id) {
@@ -132,7 +216,14 @@ async function deleteRecord(collectionName, id) {
   const batch = firestoreSdk.writeBatch(db);
   batch.delete(firestoreSdk.doc(db, collectionName, String(id)));
   await writeAudit(batch, "delete", collectionName, String(id), profile, firestoreSdk, db);
-  await batch.commit();
+  try {
+    await batch.commit();
+  } catch (error) {
+    const friendly = new Error(formatFirestoreError(error, `excluir registro em ${collectionName}`));
+    friendly.code = error?.code;
+    friendly.cause = error;
+    throw friendly;
+  }
 }
 
 function recordApi(collectionName, recordType = "") {

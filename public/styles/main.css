@@ -1382,3 +1382,72 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Logo oficial na barra superior */
+.logo-header-official {
+  height: 44px;
+  width: auto;
+  max-width: 195px;
+  object-fit: contain;
+  display: block;
+}
+
+@media (max-width: 767px) {
+  .logo-header-official {
+    height: 36px;
+    max-width: 150px;
+  }
+}
+
+/* Mensagem compacta quando falta capacidade do tanque */
+.fleet-fuel-missing-compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  font-size: 0.8rem;
+}
+
+.fleet-fuel-missing-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #92400e;
+  font-weight: 600;
+}
+
+.fleet-fuel-missing-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid #f59e0b;
+  background: #ffffff;
+  color: #b45309;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.fleet-fuel-missing-btn:hover {
+  background: #fef3c7;
+  color: #78350f;
+}
+
+/* Ajuste do rodapé dos cards da frota com 4 ações (Status, Detalhes, Editar, Abastecer) */
+.fleet-card-actions {
+  grid-template-columns: 1.1fr auto auto auto;
+}
+
+@media (max-width: 767px) {
+  .fleet-card-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+}

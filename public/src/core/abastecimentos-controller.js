@@ -1,79 +1,14 @@
 import { $, $$, currency, escapeHtml, formatDate, paymentLabel, today, uid } from "./controller-helpers.js";
+import { sanitizeVehiclePayload } from "./cadastros-controller.js";
 import { buildCardSchedules, togglePaymentBlocks } from "./payment-utils.js";
 import {
   calculateFuelMetrics,
   calculateTankMetrics,
   computeNewFuelLevel,
-  filterVehiclesByFuelStatus,
   getFuelingDate,
   getPreviousFueling,
   sortFuelingsChronologically,
-  sortVehiclesByFuel,
-  summarizeFuelings,
 } from "../utils/fueling-utils.js";
-
-const ILLUSTRATIVE_FLEET = [
-  {
-    id: "demo-fiat-ducato",
-    nome: "FIAT DUCATO 2020 - CINZA",
-    modelo: "FIAT DUCATO",
-    ano: 2020,
-    cor: "CINZA",
-    placa: "RJA2C56",
-    tipo: "van",
-    statusOperacional: "disponivel",
-    fuelLevelL: 65,
-    tankCapacityL: 90,
-    kmAtual: 220000,
-    ultimaViagemKm: 240,
-    revisaoPendente: false,
-    motoristaNome: "Não escalado",
-    proximaRevisaoTexto: "Em 5.000 km",
-    ultimaRota: "Juazeiro → Casa Nova",
-    ultimoAbastecimentoTexto: "Sem registro",
-    isIllustrative: true,
-  },
-  {
-    id: "demo-scania-2003",
-    nome: "MARCOPOLO 1200 SCANIA 2003 - PRETO",
-    modelo: "MARCOPOLO 1200 SCANIA",
-    ano: 2003,
-    cor: "PRETO",
-    placa: "CZB0D53",
-    tipo: "onibus",
-    statusOperacional: "em_viagem",
-    fuelLevelL: 152,
-    tankCapacityL: 400,
-    kmAtual: 312000,
-    ultimaViagemKm: 672,
-    revisaoPendente: false,
-    motoristaNome: "Rodrigo",
-    proximaRevisaoTexto: "Em 3.000 km",
-    ultimaRota: "Juazeiro → Paulo Afonso",
-    ultimoAbastecimentoTexto: "23/08/2026 · 230 L",
-    isIllustrative: true,
-  },
-  {
-    id: "demo-mercedes-2006",
-    nome: "MARCOPOLO 1200 MERCEDES 2006 - BRANCO",
-    modelo: "MARCOPOLO 1200 MERCEDES",
-    ano: 2006,
-    cor: "BRANCO",
-    placa: "NFZ8J52",
-    tipo: "onibus",
-    statusOperacional: "manutencao",
-    fuelLevelL: 72,
-    tankCapacityL: 400,
-    kmAtual: 331349,
-    ultimaViagemKm: 0,
-    revisaoPendente: true,
-    motoristaNome: "Braga",
-    proximaRevisaoTexto: "Revisão pendente",
-    ultimaRota: "Juazeiro → Petrolina",
-    ultimoAbastecimentoTexto: "23/08/2026 · 270 L",
-    isIllustrative: true,
-  },
-];
 
 export function createAbastecimentosController({
   state,
@@ -137,29 +72,6 @@ export function createAbastecimentosController({
   }
 
   function resolveCardData(vehicle) {
-    if (vehicle.isIllustrative) {
-      const tank = calculateTankMetrics({
-        fuelLevelL: vehicle.fuelLevelL,
-        tankCapacityL: vehicle.tankCapacityL,
-      });
-      return {
-        id: vehicle.id,
-        title: vehicle.nome,
-        placa: vehicle.placa,
-        tipo: vehicle.tipo,
-        status: vehicle.statusOperacional || "disponivel",
-        tank,
-        kmAtual: Number(vehicle.kmAtual || 0),
-        lastTripKm: Number(vehicle.ultimaViagemKm || 0),
-        revisaoPendente: Boolean(vehicle.revisaoPendente),
-        driverName: vehicle.motoristaNome || "Não escalado",
-        nextRevisionText: vehicle.proximaRevisaoTexto || "Em 5.000 km",
-        lastRouteText: vehicle.ultimaRota || "Sem rota recente",
-        lastFuelingText: vehicle.ultimoAbastecimentoTexto || "Sem registro",
-        isIllustrative: true,
-      };
-    }
-
     const modelo = String(vehicle.modelo || vehicle.nome || "VEÍCULO").toUpperCase();
     const ano = vehicle.ano ? ` ${vehicle.ano}` : "";
     const cor = vehicle.cor ? ` - ${String(vehicle.cor).toUpperCase()}` : "";
@@ -172,6 +84,7 @@ export function createAbastecimentosController({
 
     const vehicleTrips = (state.data.trips || [])
       .filter((t) => {
+        if (String(t.status || "").toLowerCase() === "cancelada") return false;
         const ids = Array.isArray(t.vehicleIds) ? t.vehicleIds : [t.vehicleId];
         return ids.includes(vehicle.id) || t.vehicleId === vehicle.id;
       })
@@ -183,27 +96,38 @@ export function createAbastecimentosController({
     );
     const lastFueling = vehicleFuelings.at(-1) || null;
 
-    const status = vehicle.statusOperacional || "disponivel";
+    const status = ["disponivel", "em_viagem", "manutencao"].includes(vehicle.statusOperacional)
+      ? vehicle.statusOperacional
+      : "disponivel";
     const kmAtual = Number(vehicle.kmAtual || 0);
     const lastTripKm = lastTrip
-      ? Number(lastTrip.totalKm || lastTrip.oneWayKm || 0)
+      ? Number(lastTrip.totalOperationalKm || lastTrip.totalKm || lastTrip.oneWayKm || 0)
       : lastFueling
         ? Number(lastFueling.distanciaPercorrida || 0)
         : 0;
 
-    // Identifica motorista vinculado na última viagem ou funcionário
     let driverName = vehicle.motoristaPadrao || "Não escalado";
-    if (lastTrip?.employeeId) {
+    if (vehicle.motoristaId) {
+      const empById = (state.data.employees || []).find((e) => e.id === vehicle.motoristaId);
+      if (empById?.nome) driverName = empById.nome;
+    } else if (lastTrip?.employeeId) {
       const emp = (state.data.employees || []).find((e) => e.id === lastTrip.employeeId);
       if (emp?.nome) driverName = emp.nome;
     }
 
-    // Verifica se está em manutenção ou se precisa de revisão
-    const revisaoPendente = Boolean(vehicle.revisaoPendente) || status === "manutencao";
-    const remainderKm = 10000 - (kmAtual % 10000);
-    const nextRevisionText = revisaoPendente
-      ? "Revisão pendente"
-      : vehicle.proximaRevisaoTexto || `Em ${remainderKm.toLocaleString("pt-BR")} km`;
+    const nextRevKm = Number(vehicle.proximaRevisaoKm || 0);
+    const overdueByKm = nextRevKm > 0 && kmAtual >= nextRevKm;
+    const revisaoPendente = Boolean(vehicle.revisaoPendente) || status === "manutencao" || overdueByKm;
+
+    let nextRevisionText = "Não informada";
+    if (revisaoPendente) {
+      nextRevisionText = vehicle.proximaRevisaoTexto || "Revisão pendente";
+    } else if (vehicle.proximaRevisaoTexto) {
+      nextRevisionText = vehicle.proximaRevisaoTexto;
+    } else if (nextRevKm > kmAtual) {
+      const remainingKm = nextRevKm - kmAtual;
+      nextRevisionText = `Em ${remainingKm.toLocaleString("pt-BR")} km`;
+    }
 
     const lastRouteText = lastTrip && lastTrip.origin && lastTrip.destination
       ? `${lastTrip.origin} → ${lastTrip.destination}`
@@ -216,8 +140,11 @@ export function createAbastecimentosController({
     return {
       id: vehicle.id,
       title,
+      modelo: vehicle.modelo || vehicle.nome || "",
       placa: vehicle.placa || "SEM PLACA",
       tipo: vehicle.tipo || "onibus",
+      capacidade: Number(vehicle.capacidade || vehicle.lugares || 0),
+      consumoKmPorLitro: Number(vehicle.consumoKmPorLitro || 0),
       status,
       tank,
       kmAtual,
@@ -227,26 +154,24 @@ export function createAbastecimentosController({
       nextRevisionText,
       lastRouteText,
       lastFuelingText,
-      isIllustrative: false,
     };
   }
 
-  function getActiveFleetSource() {
-    const realVehicles = (state.data.vehicles || []).filter((v) => v.status !== "inativo");
-    if (realVehicles.length > 0) {
-      return { vehicles: realVehicles, isIllustrative: false };
-    }
-    return { vehicles: ILLUSTRATIVE_FLEET, isIllustrative: true };
+  function getActiveFleetVehicles() {
+    return (state.data.vehicles || []).filter((v) => v.status !== "inativo");
   }
 
   function renderFuelTanks() {
     const grid = $("#fuelTanksGrid");
     if (!grid) return;
 
-    const { vehicles: rawVehicles, isIllustrative } = getActiveFleetSource();
+    const rawVehicles = getActiveFleetVehicles();
     const captionEl = $("#fleetDataSourceCaption");
     if (captionEl) {
-      captionEl.textContent = isIllustrative ? "Dados ilustrativos" : "Dados em tempo real da frota";
+      captionEl.textContent =
+        rawVehicles.length > 0
+          ? `${rawVehicles.length} ${rawVehicles.length === 1 ? "veículo ativo na frota" : "veículos ativos na frota"}`
+          : "Nenhum veículo ativo cadastrado";
     }
 
     const totalVehicles = rawVehicles.length;
@@ -261,7 +186,7 @@ export function createAbastecimentosController({
     ).length;
     const reserveCount = rawVehicles.filter((v) => {
       const m = calculateTankMetrics({ fuelLevelL: v.fuelLevelL, tankCapacityL: v.tankCapacityL });
-      return m.hasCapacity && m.percent < 20;
+      return m.hasCapacity && m.percent < 25;
     }).length;
 
     const pct = (count) => (totalVehicles > 0 ? Math.round((count / totalVehicles) * 100) : 0);
@@ -291,7 +216,23 @@ export function createAbastecimentosController({
       $("#fuelSummaryReserve").textContent = String(reserveCount);
     }
 
-    // Filtra por status e busca textual
+    if (totalVehicles === 0) {
+      grid.innerHTML = `
+        <div class="tank-empty-state col-span-full py-12">
+          <svg class="w-10 h-10 text-slate-300 mb-2 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <rect x="4" y="3" width="16" height="15" rx="2" stroke-width="1.6" />
+            <path stroke-width="1.6" d="M4 11h16M8 15h.01M16 15h.01M6 18v3M18 18v3" />
+          </svg>
+          <p class="font-semibold text-slate-800 text-base">Nenhum veículo cadastrado na frota</p>
+          <p class="muted text-sm mt-1 mb-4">Cadastre os veículos da Garcia Turismo para acompanhar combustível, odômetro e disponibilidade.</p>
+          <button type="button" class="fleet-btn-new-vehicle mx-auto" data-vehicle-action="new-vehicle">
+            + Cadastrar veículo
+          </button>
+        </div>
+      `;
+      return;
+    }
+
     let filtered = rawVehicles.filter((v) => {
       const status = v.statusOperacional || "disponivel";
       if (currentFuelFilter === "disponivel" || currentFuelFilter === "disponiveis") {
@@ -308,7 +249,7 @@ export function createAbastecimentosController({
       }
       if (currentFuelFilter === "reserva") {
         const m = calculateTankMetrics({ fuelLevelL: v.fuelLevelL, tankCapacityL: v.tankCapacityL });
-        return m.hasCapacity && m.percent < 20;
+        return m.hasCapacity && m.percent < 25;
       }
       return true;
     });
@@ -339,15 +280,14 @@ export function createAbastecimentosController({
       const { tank, status } = card;
       const pctValue = tank.hasCapacity ? Math.round(tank.percent) : 0;
 
-      // Cor dinâmica da barra de progresso: >50% verde, 20-50% amarelo, <20% vermelho
+      // Cor dinâmica da barra de progresso: Verde > 50%, Amarelo 25% a 50%, Vermelho < 25%
       let fuelColorClass = "fleet-fuel-bar--high";
-      if (!tank.hasCapacity || pctValue < 20) {
+      if (!tank.hasCapacity || pctValue < 25) {
         fuelColorClass = "fleet-fuel-bar--critical";
       } else if (pctValue <= 50) {
         fuelColorClass = "fleet-fuel-bar--medium";
       }
 
-      // Badge de status no canto direito com ponto colorido
       let statusBadgeHtml = "";
       let dotColorClass = "fleet-dot--available";
       if (status === "disponivel") {
@@ -383,39 +323,56 @@ export function createAbastecimentosController({
 
           <!-- 2. Seção de Combustível -->
           <div class="fleet-fuel-section">
-            <div class="fleet-fuel-header">
-              <div class="fleet-fuel-label">
-                <svg class="fleet-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M3 22L15 22" />
-                  <path d="M4 9L14 9" />
-                  <path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18" />
-                  <path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5" />
-                </svg>
-                <span>Combustível</span>
+            ${tank.hasCapacity ? `
+              <div class="fleet-fuel-header">
+                <div class="fleet-fuel-label">
+                  <svg class="fleet-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3 22L15 22" />
+                    <path d="M4 9L14 9" />
+                    <path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18" />
+                    <path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5" />
+                  </svg>
+                  <span>Combustível</span>
+                </div>
+                <div class="fleet-fuel-percent">${pctValue}%</div>
               </div>
-              <div class="fleet-fuel-percent">${pctValue}%</div>
-            </div>
 
-            <div
-              class="fleet-fuel-progress-track"
-              role="progressbar"
-              aria-valuenow="${pctValue}"
-              aria-valuemin="0"
-              aria-valuemax="100"
-              aria-label="Nível de combustível de ${escapeHtml(card.title)}: ${pctValue}%"
-            >
-              <div class="fleet-fuel-progress-fill ${fuelColorClass}" style="width: ${Math.max(pctValue, 4)}%"></div>
-            </div>
+              <div
+                class="fleet-fuel-progress-track"
+                role="progressbar"
+                aria-valuenow="${pctValue}"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-label="Nível de combustível de ${escapeHtml(card.title)}: ${pctValue}%"
+              >
+                <div class="fleet-fuel-progress-fill ${fuelColorClass}" style="width: ${Math.max(pctValue, 4)}%"></div>
+              </div>
 
-            <div class="fleet-fuel-meta">
-              ${tank.hasCapacity ? `
+              <div class="fleet-fuel-meta">
                 <span><strong>${Number(tank.level).toFixed(0)} L</strong> de ${tank.capacity} L</span>
                 <span class="fleet-fuel-capacity">Capacidade do tanque: ${tank.capacity} L</span>
-              ` : `
-                <span class="text-amber-700 font-medium">Informe a capacidade do tanque</span>
-                <span class="fleet-fuel-capacity">Sem capacidade cadastrada</span>
-              `}
-            </div>
+              </div>
+            ` : `
+              <div class="fleet-fuel-missing-compact">
+                <div class="fleet-fuel-missing-info">
+                  <svg class="fleet-icon-sm text-amber-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3 22L15 22" />
+                    <path d="M4 9L14 9" />
+                    <path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18" />
+                    <path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5" />
+                  </svg>
+                  <span>Tanque não informado</span>
+                </div>
+                <button
+                  type="button"
+                  class="fleet-fuel-missing-btn"
+                  data-vehicle-action="edit"
+                  data-id="${escapeHtml(card.id)}"
+                >
+                  Completar cadastro
+                </button>
+              </div>
+            `}
           </div>
 
           <hr class="fleet-card-divider" />
@@ -542,15 +499,29 @@ export function createAbastecimentosController({
               class="fleet-action-btn fleet-action-btn--details"
               data-vehicle-action="details"
               data-id="${escapeHtml(card.id)}"
+              title="Ver ficha completa do veículo"
             >
               <svg class="fleet-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                 <polyline points="14 2 14 8 20 8" />
                 <line x1="16" y1="13" x2="8" y2="13" />
                 <line x1="16" y1="17" x2="8" y2="17" />
-                <line x1="10" y1="9" x2="8" y2="9" />
               </svg>
               <span>Detalhes</span>
+            </button>
+
+            <button
+              type="button"
+              class="fleet-action-btn fleet-action-btn--details"
+              data-vehicle-action="edit"
+              data-id="${escapeHtml(card.id)}"
+              title="Editar cadastro do veículo"
+            >
+              <svg class="fleet-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+              <span>Editar</span>
             </button>
 
             <button
@@ -558,6 +529,7 @@ export function createAbastecimentosController({
               class="fleet-action-btn fleet-action-btn--fuel"
               data-vehicle-action="quick-fuel"
               data-id="${escapeHtml(card.id)}"
+              title="Lançar abastecimento"
             >
               <svg class="fleet-btn-icon fleet-btn-icon--red" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M6 2a2 2 0 0 0-2 2v18h12V4a2 2 0 0 0-2-2H6zm0 3h8v5H6V5zm11 2l3.41 3.41A2 2 0 0 1 21 11.83V17a2.5 2.5 0 0 1-5 0v-3h-1v-2h1.5a1.5 1.5 0 0 1 1.5 1.5V17a.5.5 0 0 0 1 0v-5.17l-2.7-2.7L17 7z" />
@@ -577,79 +549,82 @@ export function createAbastecimentosController({
       manutencao: "Manutenção",
     };
 
-    const demoVehicle = ILLUSTRATIVE_FLEET.find((v) => v.id === vehicleId);
-    if (demoVehicle && !(state.data.vehicles || []).some((v) => v.id === vehicleId)) {
-      demoVehicle.statusOperacional = newStatus;
-      demoVehicle.revisaoPendente = newStatus === "manutencao";
-      demoVehicle.proximaRevisaoTexto = newStatus === "manutencao" ? "Revisão pendente" : "Em 5.000 km";
-      renderFuelTanks();
-      showToast(`Status alterado para ${statusLabels[newStatus] || newStatus}.`, "success");
-      return;
-    }
-
     const vehicle = state.data.vehicles.find((v) => v.id === vehicleId);
     if (!vehicle) return;
 
     try {
-      await saveFirestoreRecord("Vehicle", "vehicles", {
-        ...vehicle,
+      const payload = sanitizeVehiclePayload(vehicle, {
         statusOperacional: newStatus,
       });
+      await saveFirestoreRecord("Vehicle", "vehicles", payload);
       onRenderAll();
       showToast(`Status de ${getVehicleName(vehicleId)} alterado para ${statusLabels[newStatus] || newStatus}.`, "success");
     } catch (error) {
       console.error("Erro ao atualizar status do veículo:", error);
+      renderFuelTanks();
       showToast(error.message || "Não foi possível atualizar o status do veículo.", "error");
     }
   }
 
   function handleVehicleDetails(vehicleId) {
     const realVehicle = (state.data.vehicles || []).find((v) => v.id === vehicleId);
-    if (realVehicle && typeof window.openEntityModal === "function") {
-      window.openEntityModal("vehicle", vehicleId);
-      return;
-    }
+    if (!realVehicle) return;
 
-    const demoVehicle = ILLUSTRATIVE_FLEET.find((v) => v.id === vehicleId);
-    if (demoVehicle) {
-      const card = resolveCardData(demoVehicle);
-      const modalRoot = $("#modalRoot");
-      const modalContent = $("#modalContent");
-      if (modalRoot && modalContent) {
-        modalRoot.classList.remove("hidden");
-        modalRoot.classList.add("flex");
-        modalContent.innerHTML = `
-          <div class="flex items-center justify-between mb-5">
-            <div>
-              <h3 class="text-2xl font-bold text-slate-900">${escapeHtml(card.title)}</h3>
-              <p class="text-sm muted">Placa: ${escapeHtml(card.placa)} · Odômetro: ${card.kmAtual.toLocaleString("pt-BR")} km</p>
-            </div>
-            <button type="button" data-action="close-modal" class="rounded-2xl px-4 py-2.5 btn-secondary font-semibold">Fechar</button>
+    const card = resolveCardData(realVehicle);
+    const modalRoot = $("#modalRoot");
+    const modalContent = $("#modalContent");
+    if (modalRoot && modalContent) {
+      modalRoot.classList.remove("hidden");
+      modalRoot.classList.add("flex");
+      modalContent.innerHTML = `
+        <div class="flex items-center justify-between mb-5">
+          <div>
+            <h3 class="text-2xl font-bold text-slate-900">${escapeHtml(card.title)}</h3>
+            <p class="text-sm muted">Placa: ${escapeHtml(card.placa)} · Capacidade: ${card.capacidade} lugares · Consumo: ${card.consumoKmPorLitro > 0 ? `${card.consumoKmPorLitro} km/L` : "Não informado"}</p>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div class="metric-card p-4">
-              <div class="muted text-xs uppercase font-bold">Combustível Atual</div>
-              <div class="text-xl font-bold mt-1">${card.tank.level} L de ${card.tank.capacity} L (${Math.round(card.tank.percent)}%)</div>
-            </div>
-            <div class="metric-card p-4">
-              <div class="muted text-xs uppercase font-bold">Motorista Escalado</div>
-              <div class="text-xl font-bold mt-1">${escapeHtml(card.driverName)}</div>
-            </div>
-            <div class="metric-card p-4">
-              <div class="muted text-xs uppercase font-bold">Última Rota</div>
-              <div class="text-base font-semibold mt-1">${escapeHtml(card.lastRouteText)}</div>
-            </div>
-            <div class="metric-card p-4">
-              <div class="muted text-xs uppercase font-bold">Próxima Revisão</div>
-              <div class="text-base font-semibold mt-1 ${card.revisaoPendente ? "text-red-600" : ""}">${escapeHtml(card.nextRevisionText)}</div>
+          <button type="button" data-action="close-modal" class="rounded-2xl px-4 py-2.5 btn-secondary font-semibold">Fechar</button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div class="metric-card p-4">
+            <div class="muted text-xs uppercase font-bold">Combustível Atual</div>
+            <div class="text-xl font-bold mt-1">
+              ${card.tank.hasCapacity
+                ? `${Number(card.tank.level).toFixed(0)} L de ${card.tank.capacity} L (${Math.round(card.tank.percent)}%)`
+                : "Tanque não informado"}
             </div>
           </div>
-          <div class="flex justify-end gap-3 mt-6">
-            <button type="button" data-action="close-modal" class="rounded-2xl px-5 py-3 btn-secondary font-semibold">Fechar</button>
-            <button type="button" class="rounded-2xl px-5 py-3 btn-primary font-semibold" onclick="window.closeModal(); window.openEntityModal('vehicle')">Cadastrar veículo na frota</button>
+          <div class="metric-card p-4">
+            <div class="muted text-xs uppercase font-bold">Odômetro Atual</div>
+            <div class="text-xl font-bold mt-1">${card.kmAtual.toLocaleString("pt-BR")} km</div>
           </div>
-        `;
-      }
+          <div class="metric-card p-4">
+            <div class="muted text-xs uppercase font-bold">Motorista Escalado</div>
+            <div class="text-base font-semibold mt-1">${escapeHtml(card.driverName)}</div>
+          </div>
+          <div class="metric-card p-4">
+            <div class="muted text-xs uppercase font-bold">Próxima Revisão</div>
+            <div class="text-base font-semibold mt-1 ${card.revisaoPendente ? "text-red-600" : ""}">${escapeHtml(card.nextRevisionText)}</div>
+          </div>
+          <div class="metric-card p-4">
+            <div class="muted text-xs uppercase font-bold">Última Rota</div>
+            <div class="text-base font-semibold mt-1">${escapeHtml(card.lastRouteText)}</div>
+          </div>
+          <div class="metric-card p-4">
+            <div class="muted text-xs uppercase font-bold">Último Abastecimento</div>
+            <div class="text-base font-semibold mt-1">${escapeHtml(card.lastFuelingText)}</div>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button type="button" data-action="close-modal" class="rounded-2xl px-5 py-3 btn-secondary font-semibold">Fechar</button>
+          <button type="button" class="rounded-2xl px-5 py-3 btn-primary font-semibold" data-action="open-entity" data-entity-type="vehicle" data-id="${escapeHtml(card.id)}">Editar cadastro</button>
+        </div>
+      `;
+    }
+  }
+
+  function handleVehicleEdit(vehicleId) {
+    if (typeof window.openEntityModal === "function") {
+      window.openEntityModal("vehicle", vehicleId);
     }
   }
 
@@ -696,9 +671,19 @@ export function createAbastecimentosController({
       });
 
       grid.addEventListener("click", (event) => {
+        const newVehicleBtn = event.target.closest("button[data-vehicle-action='new-vehicle']");
+        if (newVehicleBtn) {
+          handleVehicleEdit("");
+          return;
+        }
         const fuelBtn = event.target.closest("button[data-vehicle-action='quick-fuel']");
         if (fuelBtn) {
           handleQuickFuel(fuelBtn.dataset.id);
+          return;
+        }
+        const editBtn = event.target.closest("button[data-vehicle-action='edit']");
+        if (editBtn) {
+          handleVehicleEdit(editBtn.dataset.id);
           return;
         }
         const detailsBtn = event.target.closest("button[data-vehicle-action='details']");
@@ -966,11 +951,14 @@ export function createAbastecimentosController({
           await saveFirestoreRecord("CardSchedule", "cardSchedules", schedule, { prepend: true });
         }
         if (vehicle) {
-          await saveFirestoreRecord("Vehicle", "vehicles", {
-            ...vehicle,
-            kmAtual: vehicleKmAfterFueling(vehicle, payload),
-            fuelLevelL: newFuelLevel,
-          });
+          await saveFirestoreRecord(
+            "Vehicle",
+            "vehicles",
+            sanitizeVehiclePayload(vehicle, {
+              kmAtual: vehicleKmAfterFueling(vehicle, payload),
+              fuelLevelL: newFuelLevel,
+            }),
+          );
         }
         onRenderAll();
         clearFuelForm();

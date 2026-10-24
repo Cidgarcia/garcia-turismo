@@ -93,7 +93,9 @@ service cloud.firestore {
         'companyId', 'createdAt', 'updatedAt', 'createdBy',
         'modelo', 'ano', 'cor', 'placa', 'kmAtual', 'lugares', 'status',
         'nome', 'tipo', 'capacidade', 'layout', 'consumoKmPorLitro', 'custoManutencaoKm',
-        'tankCapacityL', 'fuelLevelL', 'statusOperacional'
+        'tankCapacityL', 'fuelLevelL', 'statusOperacional',
+        'proximaRevisaoKm', 'proximaRevisaoTexto', 'motoristaPadrao',
+        'motoristaId', 'ultimaRota', 'revisaoPendente'
       ])
         && requiredString(data, 'modelo', 120)
         && data.ano is number && data.ano >= 1900 && data.ano <= 2100
@@ -110,7 +112,13 @@ service cloud.firestore {
         && (!('custoManutencaoKm' in data) || nonNegativeNumber(data, 'custoManutencaoKm', 1000))
         && (!('tankCapacityL' in data) || nonNegativeNumber(data, 'tankCapacityL', 5000))
         && (!('fuelLevelL' in data) || nonNegativeNumber(data, 'fuelLevelL', 5000))
-        && (!('statusOperacional' in data) || data.statusOperacional in ['disponivel', 'em_viagem', 'manutencao']);
+        && (!('statusOperacional' in data) || data.statusOperacional in ['disponivel', 'em_viagem', 'manutencao'])
+        && (!('proximaRevisaoKm' in data) || nonNegativeNumber(data, 'proximaRevisaoKm', 5000000))
+        && optionalString(data, 'proximaRevisaoTexto', 120)
+        && optionalString(data, 'motoristaPadrao', 140)
+        && optionalString(data, 'motoristaId', 160)
+        && optionalString(data, 'ultimaRota', 220)
+        && (!('revisaoPendente' in data) || data.revisaoPendente is bool);
     }
 
     function validEmployee(data) {
@@ -234,7 +242,16 @@ service cloud.firestore {
         'responsible', 'client', 'origin', 'destination', 'stops', 'itinerary',
         'vehicleIds', 'vehicleId', 'employeeId', 'departureDate', 'returnDate',
         'durationDays', 'vehiclesQty', 'oneWayKm', 'totalKm', 'pricePerKm',
-        'baseValue', 'discount', 'finalValue', 'status', 'emissionDate', 'emissaoDate', 'orcamentoNum', 'validadeDias', 'passengers', 'consumptionKmPerLiter', 'emptyKm', 'fuelPrice', 'driver1Type', 'driver1Value', 'driver2Type', 'driver2Value', 'lodgingCost', 'anttCost', 'waterCost', 'insuranceCost', 'otherCosts'
+        'baseValue', 'discount', 'finalValue', 'status', 'emissionDate', 'emissaoDate',
+        'orcamentoNum', 'validadeDias', 'passengers', 'consumptionKmPerLiter', 'emptyKm',
+        'fuelPrice', 'driver1Type', 'driver1Value', 'driver2Type', 'driver2Value',
+        'lodgingCost', 'anttCost', 'waterCost', 'insuranceCost', 'otherCosts',
+        'clientPhone', 'clientEmail', 'boardingPlace', 'departureTime', 'returnTime',
+        'localDisplacementKm', 'totalOperationalKm', 'totalCapacity',
+        'driver1Days', 'driver2Days', 'tollsCost', 'parkingCost', 'driverMealsCost',
+        'manualBaseValue', 'manualFinalValue', 'costsConfirmedZero', 'vehicleConfigs',
+        'paymentTerms', 'included', 'notIncluded', 'rules', 'cancellationPolicy', 'amenities',
+        'depositSignalValue', 'depositPaidValue', 'balanceDueDate', 'paymentInstallmentNotes'
       ])
         && requiredString(data, 'responsible', 140)
         && requiredString(data, 'client', 140)
@@ -250,16 +267,58 @@ service cloud.firestore {
         && data.durationDays is number && data.durationDays >= 1 && data.durationDays <= 365
         && data.vehiclesQty is number && data.vehiclesQty >= 1 && data.vehiclesQty <= 10
         && nonNegativeNumber(data, 'oneWayKm', 100000)
-        && nonNegativeNumber(data, 'totalKm', 200000) && data.totalKm > 0
+        && nonNegativeNumber(data, 'totalKm', 200000) && (data.status == 'Rascunho' || data.totalKm > 0)
         && nonNegativeNumber(data, 'pricePerKm', 10000)
-        && nonNegativeNumber(data, 'baseValue', 10000000) && data.baseValue > 0
+        && nonNegativeNumber(data, 'baseValue', 10000000) && (data.status == 'Rascunho' || data.baseValue > 0)
         && nonNegativeNumber(data, 'discount', 10000000)
-        && nonNegativeNumber(data, 'finalValue', 10000000) && data.finalValue > 0
+        && nonNegativeNumber(data, 'finalValue', 10000000) && (data.status == 'Rascunho' || data.finalValue > 0)
         && requiredString(data, 'status', 40)
         && (
           ('emissionDate' in data && isoDate(data, 'emissionDate')) ||
           ('emissaoDate' in data && isoDate(data, 'emissaoDate'))
-        );
+        )
+        && optionalString(data, 'orcamentoNum', 60)
+        && (!('validadeDias' in data) || nonNegativeNumber(data, 'validadeDias', 365))
+        && (!('passengers' in data) || nonNegativeNumber(data, 'passengers', 1000))
+        && (!('consumptionKmPerLiter' in data) || nonNegativeNumber(data, 'consumptionKmPerLiter', 100))
+        && (!('emptyKm' in data) || nonNegativeNumber(data, 'emptyKm', 200000))
+        && (!('fuelPrice' in data) || nonNegativeNumber(data, 'fuelPrice', 1000))
+        && optionalString(data, 'driver1Type', 40)
+        && (!('driver1Value' in data) || nonNegativeNumber(data, 'driver1Value', 1000000))
+        && optionalString(data, 'driver2Type', 40)
+        && (!('driver2Value' in data) || nonNegativeNumber(data, 'driver2Value', 1000000))
+        && (!('lodgingCost' in data) || nonNegativeNumber(data, 'lodgingCost', 1000000))
+        && (!('anttCost' in data) || nonNegativeNumber(data, 'anttCost', 1000000))
+        && (!('waterCost' in data) || nonNegativeNumber(data, 'waterCost', 1000000))
+        && (!('insuranceCost' in data) || nonNegativeNumber(data, 'insuranceCost', 1000000))
+        && (!('otherCosts' in data) || nonNegativeNumber(data, 'otherCosts', 1000000))
+        && optionalString(data, 'clientPhone', 40)
+        && optionalString(data, 'clientEmail', 160)
+        && optionalString(data, 'boardingPlace', 220)
+        && optionalString(data, 'departureTime', 20)
+        && optionalString(data, 'returnTime', 20)
+        && (!('localDisplacementKm' in data) || nonNegativeNumber(data, 'localDisplacementKm', 200000))
+        && (!('totalOperationalKm' in data) || nonNegativeNumber(data, 'totalOperationalKm', 500000))
+        && (!('totalCapacity' in data) || nonNegativeNumber(data, 'totalCapacity', 1000))
+        && (!('driver1Days' in data) || nonNegativeNumber(data, 'driver1Days', 365))
+        && (!('driver2Days' in data) || nonNegativeNumber(data, 'driver2Days', 365))
+        && (!('tollsCost' in data) || nonNegativeNumber(data, 'tollsCost', 1000000))
+        && (!('parkingCost' in data) || nonNegativeNumber(data, 'parkingCost', 1000000))
+        && (!('driverMealsCost' in data) || nonNegativeNumber(data, 'driverMealsCost', 1000000))
+        && (!('manualBaseValue' in data) || nonNegativeNumber(data, 'manualBaseValue', 10000000))
+        && (!('manualFinalValue' in data) || nonNegativeNumber(data, 'manualFinalValue', 10000000))
+        && (!('costsConfirmedZero' in data) || data.costsConfirmedZero is bool)
+        && (!('vehicleConfigs' in data) || (data.vehicleConfigs is list && data.vehicleConfigs.size() <= 20))
+        && optionalString(data, 'paymentTerms', 1500)
+        && optionalString(data, 'included', 1500)
+        && optionalString(data, 'notIncluded', 1500)
+        && optionalString(data, 'rules', 1500)
+        && optionalString(data, 'cancellationPolicy', 1500)
+        && (!('amenities' in data) || (data.amenities is list && data.amenities.size() <= 30))
+        && (!('depositSignalValue' in data) || nonNegativeNumber(data, 'depositSignalValue', 10000000))
+        && (!('depositPaidValue' in data) || nonNegativeNumber(data, 'depositPaidValue', 10000000))
+        && optionalString(data, 'balanceDueDate', 40)
+        && optionalString(data, 'paymentInstallmentNotes', 1000);
     }
 
     function validCard(data) {
@@ -339,7 +398,7 @@ service cloud.firestore {
 
     match /vehicles/{vehicleId} {
       allow read: if sameCompany(resource.data.companyId);
-      allow create: if isAdmin() && canCreate(request.resource.data) && validVehicle(request.resource.data);
+      allow create: if (isAdmin() || isOperator()) && canCreate(request.resource.data) && validVehicle(request.resource.data);
       allow update: if (isAdmin() || isOperator()) && canUpdate(request.resource.data) && validVehicle(request.resource.data);
       allow delete: if isAdmin() && sameCompany(resource.data.companyId);
     }

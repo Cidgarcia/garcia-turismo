@@ -6,7 +6,7 @@ export function renderAbastecimentoTab() {
         <div>
           <h1 class="fleet-page-title">Gestão da frota</h1>
           <p class="fleet-page-subtitle">Combustível, quilometragem e operação em um só lugar.</p>
-          <span id="fleetDataSourceCaption" class="fleet-page-caption">Dados ilustrativos</span>
+          <span id="fleetDataSourceCaption" class="fleet-page-caption">Frota sincronizada com o banco de dados</span>
         </div>
         <button
           type="button"
@@ -37,7 +37,7 @@ export function renderAbastecimentoTab() {
               </svg>
             </div>
             <div>
-              <div id="fuelSummaryTotal" class="fleet-metric-title">3 veículos</div>
+              <div id="fuelSummaryTotal" class="fleet-metric-title">0 veículos</div>
               <div class="fleet-metric-sub">Total na frota</div>
             </div>
           </div>
@@ -52,8 +52,8 @@ export function renderAbastecimentoTab() {
               </svg>
             </div>
             <div>
-              <div id="fuelSummaryAvailable" class="fleet-metric-title">1 disponível</div>
-              <div id="fuelSummaryAvailablePct" class="fleet-metric-sub">33% da frota</div>
+              <div id="fuelSummaryAvailable" class="fleet-metric-title">0 disponíveis</div>
+              <div id="fuelSummaryAvailablePct" class="fleet-metric-sub">0% da frota</div>
             </div>
           </div>
 
@@ -67,8 +67,8 @@ export function renderAbastecimentoTab() {
               </svg>
             </div>
             <div>
-              <div id="fuelSummaryTrip" class="fleet-metric-title">1 em viagem</div>
-              <div id="fuelSummaryTripPct" class="fleet-metric-sub">33% da frota</div>
+              <div id="fuelSummaryTrip" class="fleet-metric-title">0 em viagem</div>
+              <div id="fuelSummaryTripPct" class="fleet-metric-sub">0% da frota</div>
             </div>
           </div>
 
@@ -82,8 +82,8 @@ export function renderAbastecimentoTab() {
               </svg>
             </div>
             <div>
-              <div id="fuelSummaryMaintenance" class="fleet-metric-title">1 em manutenção</div>
-              <div id="fuelSummaryMaintenancePct" class="fleet-metric-sub">33% da frota</div>
+              <div id="fuelSummaryMaintenance" class="fleet-metric-title">0 em manutenção</div>
+              <div id="fuelSummaryMaintenancePct" class="fleet-metric-sub">0% da frota</div>
             </div>
           </div>
           <span id="fuelSummaryReserve" class="hidden-section">0</span>
@@ -111,7 +111,7 @@ export function renderAbastecimentoTab() {
               <option value="disponivel">Disponível</option>
               <option value="em_viagem">Em viagem</option>
               <option value="manutencao">Manutenção</option>
-              <option value="reserva">Em reserva (&lt; 20%)</option>
+              <option value="reserva">Baixo combustível (&lt; 25%)</option>
             </select>
           </div>
         </div>

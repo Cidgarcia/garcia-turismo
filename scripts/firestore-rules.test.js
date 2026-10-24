@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+?import { readFile } from "node:fs/promises";
 import { after, before, test } from "node:test";
 import {
   assertFails,
@@ -443,7 +443,65 @@ test("suporta tankCapacityL, fuelLevelL e statusOperacional em veículos e atual
     updatedAt: serverTimestamp(),
   }));
 
-  // Limpeza
+  // Operador cria veículo completo com campos operacionais, mas não pode excluir
+  const operatorVehicleRef = doc(operator, "vehicles", "vehicle-operator-create");
+  await assertSucceeds(setDoc(operatorVehicleRef, {
+    ...vehicle("operator", "op"),
+    capacidade: 46,
+    consumoKmPorLitro: 3.5,
+    tankCapacityL: 400,
+    fuelLevelL: 280,
+    statusOperacional: "disponivel",
+    proximaRevisaoKm: 250000,
+    proximaRevisaoTexto: "Em 5.000 km",
+    motoristaPadrao: "Carlos Mendes",
+    ultimaRota: "Juazeiro → Salvador",
+    revisaoPendente: false,
+  }));
+  await assertFails(deleteDoc(operatorVehicleRef));
+
+  // Limpeza pelo admin
+  await assertSucceeds(deleteDoc(operatorVehicleRef));
   await assertSucceeds(deleteDoc(vehicleRef));
 });
+
+test("suporta propostas/viagens completas e rascunhos com custos incompletos", async () => {
+  const operator = dbFor("operator");
+  const draftRef = doc(operator, "trips", "trip-draft-incomplete");
+  await assertSucceeds(setDoc(draftRef, {
+    ...trip("operator"),
+    status: "Rascunho",
+    oneWayKm: 0,
+    totalKm: 0,
+    baseValue: 0,
+    finalValue: 0,
+    clientPhone: "(74) 99999-0000",
+    boardingPlace: "Terminal Rodoviário de Juazeiro",
+    departureTime: "06:00",
+    returnTime: "20:00",
+    localDisplacementKm: 80,
+    totalOperationalKm: 80,
+    totalCapacity: 46,
+    driver1Type: "dia",
+    driver1Value: 250,
+    driver1Days: 3,
+    driver2Type: "viagem",
+    driver2Value: 0,
+    driver2Days: 0,
+    tollsCost: 120,
+    parkingCost: 60,
+    driverMealsCost: 180,
+    paymentTerms: "50% de sinal na assinatura e 50% até 48h antes do embarque.",
+    included: "Transporte executivo, combustível, pedágios e motorista.",
+    notIncluded: "Ingressos, refeições de passageiros e hospedagem.",
+    rules: "Tolerância de atraso no embarque de 30 minutos.",
+    cancellationPolicy: "Cancelamento até 7 dias antes com retenção de 20%.",
+    amenities: ["Ar-condicionado", "Wi-Fi", "WC"],
+    depositSignalValue: 1500,
+    depositPaidValue: 1500,
+    balanceDueDate: "2026-08-08",
+  }));
+  await assertSucceeds(deleteDoc(draftRef));
+});
+
 
