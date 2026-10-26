@@ -1,4 +1,4 @@
-?import { readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { after, before, test } from "node:test";
 import {
   assertFails,
@@ -461,7 +461,7 @@ test("suporta tankCapacityL, fuelLevelL e statusOperacional em veículos e atual
   await assertFails(deleteDoc(operatorVehicleRef));
 
   // Limpeza pelo admin
-  await assertSucceeds(deleteDoc(operatorVehicleRef));
+  await assertSucceeds(deleteDoc(doc(admin, "vehicles", "vehicle-operator-create")));
   await assertSucceeds(deleteDoc(vehicleRef));
 });
 
@@ -502,6 +502,82 @@ test("suporta propostas/viagens completas e rascunhos com custos incompletos", a
     balanceDueDate: "2026-08-08",
   }));
   await assertSucceeds(deleteDoc(draftRef));
+
+  const admin = dbFor("admin");
+  const fullTripId = "trip-frontend-full-payload";
+  const batch = writeBatch(admin);
+  batch.set(doc(admin, "trips", fullTripId), {
+    ...metadata("admin"),
+    responsible: "Cid Garcia",
+    client: "Faculdade São Francisco",
+    clientPhone: "(74) 99988-1122",
+    origin: "Juazeiro - BA",
+    boardingPlace: "Praça da Catedral",
+    destination: "Salvador - BA",
+    stops: ["Feira de Santana - BA"],
+    itinerary: ["Juazeiro - BA", "Feira de Santana - BA", "Salvador - BA"],
+    vehicleIds: ["vehicle-seed"],
+    vehicleId: "vehicle-seed",
+    vehicleConfigs: [{ id: "vehicle-seed", nome: "Ônibus 1", capacidade: 46, consumoKmPorLitro: 3.2 }],
+    departureDate: "2026-11-10",
+    returnDate: "2026-11-13",
+    departureTime: "06:00",
+    returnTime: "20:00",
+    durationDays: 4,
+    vehiclesQty: 1,
+    totalCapacity: 46,
+    passengers: 44,
+    consumptionKmPerLiter: 3.2,
+    oneWayKm: 510,
+    totalKm: 1020,
+    emptyKm: 30,
+    localDisplacementKm: 50,
+    totalOperationalKm: 1100,
+    pricePerKm: 8.5,
+    baseValue: 9800,
+    manualBaseValue: 9800,
+    discount: 300,
+    finalValue: 9500,
+    status: "Enviado",
+    emissionDate: "2026-10-26",
+    emissaoDate: "2026-10-26",
+    orcamentoNum: "GT-20261026-0001",
+    validadeDias: 7,
+    fuelPrice: 6.2,
+    driver1Type: "dia",
+    driver1Value: 250,
+    driver1Days: 4,
+    driver2Type: "viagem",
+    driver2Value: 0,
+    driver2Days: 0,
+    tollsCost: 180,
+    parkingCost: 80,
+    lodgingCost: 450,
+    driverMealsCost: 240,
+    anttCost: 160,
+    waterCost: 90,
+    insuranceCost: 0,
+    otherCosts: [{ nome: "Taxa de embarque turístico", valor: 120 }],
+    costsConfirmedZero: true,
+    depositSignalValue: 3000,
+    depositPaidValue: 1500,
+    balanceDueDate: "2026-11-05",
+    paymentTerms: "30% de sinal e restante até 5 dias antes.",
+    included: "Transporte fretado ida e volta.",
+    notIncluded: "Hospedagem dos passageiros.",
+    rules: "Tolerância de 15 minutos.",
+    cancellationPolicy: "Devolução integral até 7 dias antes.",
+  });
+  batch.set(doc(admin, "auditLogs", "audit-trip-frontend-full"), {
+    action: "create",
+    collection: "trips",
+    documentId: fullTripId,
+    companyId: COMPANY_ID,
+    createdBy: "admin",
+    createdAt: serverTimestamp(),
+  });
+  await assertSucceeds(batch.commit());
+  await assertSucceeds(deleteDoc(doc(admin, "trips", fullTripId)));
 });
 
 

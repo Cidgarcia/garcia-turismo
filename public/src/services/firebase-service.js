@@ -19,16 +19,80 @@ function normalizeDocument(snapshot) {
   return data;
 }
 
-function documentPayload(payload = {}) {
-  const { id, companyId, createdAt, updatedAt, createdBy, recordType, isIllustrative, ...raw } = payload;
-  const data = {};
+function documentPayload(
+  payload = {},
+  { collectionName = "", recordType = "", isUpdate = false, deleteFieldFn = null } = {},
+) {
+  const { id, companyId, createdAt, updatedAt, createdBy, recordType: _rt, isIllustrative, ...raw } = payload;
+  const firestoreData = {};
+  const returnData = {};
+
   for (const [key, val] of Object.entries(raw)) {
-    if (val !== undefined) data[key] = val;
+    if (val === undefined) continue;
+    if (val === null) {
+      if (isUpdate && typeof deleteFieldFn === "function") {
+        firestoreData[key] = deleteFieldFn();
+      }
+      continue;
+    }
+    firestoreData[key] = val;
+    returnData[key] = val;
   }
-  if (data.veiculoId && !data.vehicleId) data.vehicleId = data.veiculoId;
-  if (data.funcionarioId && !data.employeeId) data.employeeId = data.funcionarioId;
-  if (Array.isArray(data.vehicleIds) && !data.vehicleId) data.vehicleId = data.vehicleIds[0] || "";
-  return data;
+
+  if (collectionName === "trips") {
+    if (!firestoreData.vehicleId && typeof firestoreData.veiculoId === "string") {
+      firestoreData.vehicleId = firestoreData.veiculoId;
+      returnData.vehicleId = firestoreData.veiculoId;
+    }
+    if (!firestoreData.employeeId && typeof firestoreData.funcionarioId === "string") {
+      firestoreData.employeeId = firestoreData.funcionarioId;
+      returnData.employeeId = firestoreData.funcionarioId;
+    }
+    delete firestoreData.veiculoId;
+    delete firestoreData.funcionarioId;
+    delete returnData.veiculoId;
+    delete returnData.funcionarioId;
+    if (Array.isArray(firestoreData.vehicleIds) && !firestoreData.vehicleId) {
+      firestoreData.vehicleId = firestoreData.vehicleIds[0] || "";
+      returnData.vehicleId = firestoreData.vehicleId;
+    }
+  } else if (collectionName === "expenses" || recordType === "cardSchedule") {
+    const vId = String(firestoreData.veiculoId ?? firestoreData.vehicleId ?? "");
+    const eId = String(firestoreData.funcionarioId ?? firestoreData.employeeId ?? "");
+    firestoreData.veiculoId = vId;
+    firestoreData.vehicleId = vId;
+    firestoreData.funcionarioId = eId;
+    firestoreData.employeeId = eId;
+    returnData.veiculoId = vId;
+    returnData.vehicleId = vId;
+    returnData.funcionarioId = eId;
+    returnData.employeeId = eId;
+  } else if (collectionName === "fuelings") {
+    const vId = String(firestoreData.veiculoId ?? firestoreData.vehicleId ?? "");
+    firestoreData.veiculoId = vId;
+    firestoreData.vehicleId = vId;
+    returnData.veiculoId = vId;
+    returnData.vehicleId = vId;
+    delete firestoreData.funcionarioId;
+    delete firestoreData.employeeId;
+    delete returnData.funcionarioId;
+    delete returnData.employeeId;
+  } else {
+    if (firestoreData.veiculoId && !firestoreData.vehicleId) {
+      firestoreData.vehicleId = firestoreData.veiculoId;
+      returnData.vehicleId = firestoreData.veiculoId;
+    }
+    if (firestoreData.funcionarioId && !firestoreData.employeeId) {
+      firestoreData.employeeId = firestoreData.funcionarioId;
+      returnData.employeeId = firestoreData.funcionarioId;
+    }
+    if (Array.isArray(firestoreData.vehicleIds) && !firestoreData.vehicleId) {
+      firestoreData.vehicleId = firestoreData.vehicleIds[0] || "";
+      returnData.vehicleId = firestoreData.vehicleId;
+    }
+  }
+
+  return { firestoreData, returnData };
 }
 
 export function formatFirestoreError(error, actionLabel = "salvar os dados") {
@@ -54,7 +118,7 @@ export function formatFirestoreError(error, actionLabel = "salvar os dados") {
     if (company !== FIREBASE_COMPANY_ID) {
       return `Sem permissão para ${actionLabel}: seu usuário está vinculado à empresa "${company}" e não a "${FIREBASE_COMPANY_ID}".`;
     }
-    if (role !== "admin" && role !== "operador" && role !== "operator") {
+    if (!["admin", "operador", "operator", "finance", "financeiro"].includes(role)) {
       return `Sem permissão para ${actionLabel}: seu perfil atual (${role}) não possui autorização para esta operação.`;
     }
     return `Permissão negada pelo Firestore ao ${actionLabel}. Verifique se todos os campos são válidos e se o seu perfil (${role}) possui autorização.`;
@@ -155,10 +219,14 @@ async function createRecord(collectionName, payload, recordType = "") {
   const { db, firestoreSdk } = await firebaseContext();
   const id = String(payload?.id || firestoreSdk.doc(firestoreSdk.collection(db, collectionName)).id);
   const recordRef = firestoreSdk.doc(db, collectionName, id);
-  const cleanData = documentPayload(payload);
+  const { firestoreData, returnData } = documentPayload(payload, {
+    collectionName,
+    recordType,
+    isUpdate: false,
+  });
   const batch = firestoreSdk.writeBatch(db);
   batch.set(recordRef, {
-    ...cleanData,
+    ...firestoreData,
     ...(recordType ? { recordType } : {}),
     companyId: profile.companyId,
     createdBy: profile.uid,
@@ -176,7 +244,7 @@ async function createRecord(collectionName, payload, recordType = "") {
   }
   return {
     id,
-    ...cleanData,
+    ...returnData,
     ...(recordType ? { recordType } : {}),
     companyId: profile.companyId,
     createdBy: profile.uid,
@@ -187,10 +255,15 @@ async function updateRecord(collectionName, id, payload, recordType = "") {
   const profile = await currentProfile();
   const { db, firestoreSdk } = await firebaseContext();
   const recordRef = firestoreSdk.doc(db, collectionName, String(id));
-  const cleanData = documentPayload(payload);
+  const { firestoreData, returnData } = documentPayload(payload, {
+    collectionName,
+    recordType,
+    isUpdate: true,
+    deleteFieldFn: firestoreSdk.deleteField,
+  });
   const batch = firestoreSdk.writeBatch(db);
   batch.update(recordRef, {
-    ...cleanData,
+    ...firestoreData,
     ...(recordType ? { recordType } : {}),
     updatedAt: firestoreSdk.serverTimestamp(),
   });
@@ -205,7 +278,7 @@ async function updateRecord(collectionName, id, payload, recordType = "") {
   }
   return {
     id: String(id),
-    ...cleanData,
+    ...returnData,
     ...(recordType ? { recordType } : {}),
   };
 }

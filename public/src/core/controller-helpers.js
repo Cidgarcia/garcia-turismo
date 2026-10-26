@@ -58,7 +58,14 @@ export function paymentLabel(value) {
 
 export function getVehicleBaseName(vehicle) {
   if (!vehicle) return "-";
-  if (vehicle.nome) return `${vehicle.nome} (${vehicle.modelo})`;
+  const nome = String(vehicle.nome || "").trim();
+  const modelo = String(vehicle.modelo || "").trim();
+  if (nome && modelo && nome.toLowerCase() !== modelo.toLowerCase()) {
+    return `${nome} (${modelo})`;
+  }
+  if (nome) {
+    return vehicle.placa ? `${nome} • ${vehicle.placa}` : nome;
+  }
   return `${vehicle.modelo} ${vehicle.ano} - ${vehicle.cor}`;
 }
 

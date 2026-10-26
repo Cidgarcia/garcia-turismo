@@ -520,6 +520,9 @@ export function renderViagensTab() {
                 <span>Interno</span>
               </label>
             </div>
+            <button id="tripOpenPrintPageBtn" type="button" class="rounded-2xl px-4 py-3 btn-secondary font-semibold">
+              Imprimir / Página completa
+            </button>
             <button id="tripExportPdfBtn" type="button" class="rounded-2xl px-5 py-3 btn-primary font-semibold">
               Exportar PDF
             </button>

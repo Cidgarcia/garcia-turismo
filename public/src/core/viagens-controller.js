@@ -860,10 +860,29 @@ export function createViagensController({
     }
   }
 
+  function normalizeIsoDateString(value) {
+    if (!value) return "";
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+      if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) return trimmed.slice(0, 10);
+      const brMatch = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (brMatch) return `${brMatch[3]}-${brMatch[2]}-${brMatch[1]}`;
+    }
+    if (typeof value?.toDate === "function") {
+      return value.toDate().toISOString().slice(0, 10);
+    }
+    return "";
+  }
+
   function buildTripPayloadFromForm({ silent = false, allowIncomplete = false } = {}) {
     const tripId = $("#tripId")?.value || uid();
     const existing = (state.data.trips || []).find((trip) => trip.id === tripId);
-    const emissaoDate = existing?.emissaoDate || existing?.emissionDate || $("#tripEmissaoDate")?.value || today();
+    const emissaoDate =
+      normalizeIsoDateString(existing?.emissaoDate) ||
+      normalizeIsoDateString(existing?.emissionDate) ||
+      normalizeIsoDateString($("#tripEmissaoDate")?.value) ||
+      today();
     const orcamentoNum =
       $("#tripOrcamentoNum")?.value?.trim() ||
       existing?.orcamentoNum ||
@@ -876,61 +895,72 @@ export function createViagensController({
     const origin = ($("#tripOrigin")?.value || "").trim();
     const boardingPlace = ($("#tripBoardingPlace")?.value || "").trim();
     const destination = ($("#tripDestination")?.value || "").trim();
-    const departureDate = $("#tripDepartureDate")?.value || "";
-    const returnDate = $("#tripReturnDate")?.value || "";
+    const departureDate = normalizeIsoDateString($("#tripDepartureDate")?.value);
+    const returnDate = normalizeIsoDateString($("#tripReturnDate")?.value);
     const departureTime = ($("#tripDepartureTime")?.value || "").trim();
     const returnTime = ($("#tripReturnTime")?.value || "").trim();
     const durationDays = Math.max(1, Math.min(365, Number($("#tripDuration")?.value || 1)));
 
-    const selectedVehicleIds = getSelectedTripVehicleIds();
-    const vehiclesQty = Math.max(selectedVehicleIds.length || Number($("#tripVehiclesQty")?.value || 1), 1);
-    const totalCapacity = Math.max(1, Number($("#tripTotalCapacity")?.value || 46));
-    const passengers = Math.max(0, Number($("#tripPassengers")?.value || 0));
-    const consumptionKmPerLiter = Math.max(0, Number($("#tripConsumption")?.value || 0));
+    const selectedVehicleIds = getSelectedTripVehicleIds().slice(0, 20);
+    const vehiclesQty = Math.min(
+      20,
+      Math.max(selectedVehicleIds.length || Number($("#tripVehiclesQty")?.value || 1), 1),
+    );
+    const totalCapacity = Math.min(1000, Math.max(1, Number($("#tripTotalCapacity")?.value || 46)));
+    const passengers = Math.min(1000, Math.max(0, Number($("#tripPassengers")?.value || 0)));
+    const consumptionKmPerLiter = Math.min(100, Math.max(0, Number($("#tripConsumption")?.value || 0)));
 
-    const oneWayKm = Math.max(0, Number($("#tripOneWayKm")?.value || 0));
-    const totalKm = Math.max(0, Number($("#tripTotalKm")?.value || 0));
-    const emptyKm = Math.max(0, Number($("#tripEmptyKm")?.value || 0));
-    const localDisplacementKm = Math.max(0, Number($("#tripLocalDisplacementKm")?.value || 0));
+    const oneWayKm = Math.min(100000, Math.max(0, Number($("#tripOneWayKm")?.value || 0)));
+    const totalKm = Math.min(200000, Math.max(0, Number($("#tripTotalKm")?.value || 0)));
+    const emptyKm = Math.min(200000, Math.max(0, Number($("#tripEmptyKm")?.value || 0)));
+    const localDisplacementKm = Math.min(200000, Math.max(0, Number($("#tripLocalDisplacementKm")?.value || 0)));
 
-    const pricePerKm = Math.max(0, Number($("#tripPricePerKm")?.value || 0));
-    const baseValue = Math.max(0, Number($("#tripBaseValue")?.value || 0));
-    const discount = Math.max(0, Number($("#tripDiscount")?.value || 0));
-    const finalValue = Math.max(0, baseValue - discount);
-    const status = $("#tripStatus")?.value || "Rascunho";
+    const pricePerKm = Math.min(10000, Math.max(0, Number($("#tripPricePerKm")?.value || 0)));
+    const baseValue = Math.min(10000000, Math.max(0, Number($("#tripBaseValue")?.value || 0)));
+    const discount = Math.min(10000000, Math.max(0, Number($("#tripDiscount")?.value || 0)));
+    const finalValue = Math.min(10000000, Math.max(0, baseValue - discount));
+    const status = ($("#tripStatus")?.value || "Rascunho").slice(0, 40);
     const stops = ($("#tripStops")?.value || "")
       .split(/\n+/)
       .map((item) => item.trim())
       .filter(Boolean)
       .slice(0, 10);
 
-    const fuelPrice = Math.max(0, Number($("#tripFuelPrice")?.value || 6.2));
-    const driver1Type = $("#tripDriver1Type")?.value || "viagem";
+    const fuelPrice = Math.min(1000, Math.max(0, Number($("#tripFuelPrice")?.value || 6.2)));
+    const driver1Type = ($("#tripDriver1Type")?.value || "viagem").slice(0, 40);
     const driver1ValueRaw = $("#tripDriver1Value")?.value ?? "";
-    const driver1Value = Math.max(0, Number(driver1ValueRaw || 0));
+    const driver1Value = Math.min(1000000, Math.max(0, Number(driver1ValueRaw || 0)));
     const driver1Days = Math.max(0, Math.min(365, Number($("#tripDriver1Days")?.value || 1)));
 
-    const driver2Type = $("#tripDriver2Type")?.value || "viagem";
-    const driver2Value = Math.max(0, Number($("#tripDriver2Value")?.value || 0));
+    const driver2Type = ($("#tripDriver2Type")?.value || "viagem").slice(0, 40);
+    const driver2Value = Math.min(1000000, Math.max(0, Number($("#tripDriver2Value")?.value || 0)));
     const driver2Days = Math.max(0, Math.min(365, Number($("#tripDriver2Days")?.value || 0)));
 
-    const tollsCost = Math.max(0, Number($("#tripTollsCost")?.value || 0));
-    const parkingCost = Math.max(0, Number($("#tripParkingCost")?.value || 0));
-    const lodgingCost = Math.max(0, Number($("#tripLodgingCost")?.value || 0));
-    const driverMealsCost = Math.max(0, Number($("#tripDriverMealsCost")?.value || 0));
-    const anttCost = Math.max(0, Number($("#tripAnttCost")?.value || 0));
-    const waterCost = Math.max(0, Number($("#tripWaterCost")?.value || 0));
-    const insuranceCost = Math.max(0, Number($("#tripInsuranceCost")?.value || 0));
+    const tollsCost = Math.min(1000000, Math.max(0, Number($("#tripTollsCost")?.value || 0)));
+    const parkingCost = Math.min(1000000, Math.max(0, Number($("#tripParkingCost")?.value || 0)));
+    const lodgingCost = Math.min(1000000, Math.max(0, Number($("#tripLodgingCost")?.value || 0)));
+    const driverMealsCost = Math.min(1000000, Math.max(0, Number($("#tripDriverMealsCost")?.value || 0)));
+    const anttCost = Math.min(1000000, Math.max(0, Number($("#tripAnttCost")?.value || 0)));
+    const waterCost = Math.min(1000000, Math.max(0, Number($("#tripWaterCost")?.value || 0)));
+    const insuranceCost = Math.min(1000000, Math.max(0, Number($("#tripInsuranceCost")?.value || 0)));
     const costsConfirmedZero = $("#tripCostsConfirmedZero")?.checked === true || driver1ValueRaw === "0";
 
-    const depositSignalValue = Math.max(0, Number($("#tripDepositSignalValue")?.value || 0));
-    const depositPaidValue = Math.max(0, Number($("#tripDepositPaidValue")?.value || 0));
+    const depositSignalValue = Math.min(10000000, Math.max(0, Number($("#tripDepositSignalValue")?.value || 0)));
+    const depositPaidValue = Math.min(10000000, Math.max(0, Number($("#tripDepositPaidValue")?.value || 0)));
     const balanceDueDate = ($("#tripBalanceDueDate")?.value || "").trim();
     const paymentTerms = ($("#tripPaymentTerms")?.value || "").trim().slice(0, 1500);
     const included = ($("#tripIncluded")?.value || "").trim().slice(0, 1500);
     const notIncluded = ($("#tripNotIncluded")?.value || "").trim().slice(0, 1500);
     const rules = ($("#tripRules")?.value || "").trim().slice(0, 1500);
     const cancellationPolicy = ($("#tripCancellationPolicy")?.value || "").trim().slice(0, 1500);
+
+    const sanitizedOtherCosts = (Array.isArray(tripOtherCostsState) ? tripOtherCostsState : [])
+      .slice(0, 30)
+      .map((item) => ({
+        nome: String(item?.nome || "").trim().slice(0, 140),
+        valor: Math.min(1000000, Math.max(0, Number(item?.valor || 0) || 0)),
+      }))
+      .filter((item) => item.nome || item.valor > 0);
 
     if (!allowIncomplete) {
       if (!responsible || !client || !origin || !destination || !departureDate || !returnDate) {
@@ -941,12 +971,12 @@ export function createViagensController({
         if (!silent) showToast("A data de retorno não pode ser anterior à data de saída.", "error");
         return null;
       }
-      const isDraft = status === "Rascunho";
-      if (!isDraft && totalKm <= 0) {
+      const allowsZeroPricing = ["Rascunho", "Cancelada", "Recusado", "Expirado"].includes(status);
+      if (!allowsZeroPricing && totalKm <= 0) {
         if (!silent) showToast("Informe ou calcule o total de km da viagem (ou salve como Rascunho).", "error");
         return null;
       }
-      if (!isDraft && (baseValue <= 0 || finalValue <= 0)) {
+      if (!allowsZeroPricing && (baseValue <= 0 || finalValue <= 0)) {
         if (!silent) showToast("Informe o valor bruto/final da proposta (ou salve como Rascunho).", "error");
         return null;
       }
@@ -959,8 +989,9 @@ export function createViagensController({
       consumptionKmPerLiter,
       totalCapacity,
     );
-    const totalOperationalKm = Number(
-      ((totalKm + emptyKm + localDisplacementKm) * vehiclesQty).toFixed(2),
+    const totalOperationalKm = Math.min(
+      500000,
+      Number(((totalKm + emptyKm + localDisplacementKm) * vehiclesQty).toFixed(2)),
     );
 
     const payload = {
@@ -976,9 +1007,9 @@ export function createViagensController({
       destination: (destination || "Destino").slice(0, 220),
       stops,
       itinerary: [origin || "Origem", ...stops, destination || "Destino"].slice(0, 12),
-      vehicleIds: selectedVehicleIds.slice(0, 10),
+      vehicleIds: selectedVehicleIds.slice(0, 20),
       vehicleId: selectedVehicleIds[0] || "",
-      vehicleConfigs: vehicleConfigs.slice(0, 10),
+      vehicleConfigs: vehicleConfigs.slice(0, 20),
       departureDate: departureDate || today(),
       returnDate: returnDate || departureDate || today(),
       departureTime: departureTime.slice(0, 20),
@@ -995,7 +1026,7 @@ export function createViagensController({
       totalOperationalKm,
       pricePerKm,
       baseValue,
-      ...(state.ui.tripManualBase ? { manualBaseValue: baseValue } : {}),
+      manualBaseValue: state.ui.tripManualBase ? baseValue : null,
       discount,
       finalValue,
       status,
@@ -1017,7 +1048,7 @@ export function createViagensController({
       anttCost,
       waterCost,
       insuranceCost,
-      otherCosts: [...tripOtherCostsState],
+      otherCosts: sanitizedOtherCosts,
       costsConfirmedZero,
       depositSignalValue,
       depositPaidValue,
@@ -1048,7 +1079,7 @@ export function createViagensController({
       <div class="proposal-doc" style="max-width: 820px; margin: 0 auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px 32px;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 2px solid #dc2626; padding-bottom: 16px; margin-bottom: 20px;">
           <div>
-            <img src="${logoPath}" alt="Garcia Turismo" style="height: 54px; width: auto; object-fit: contain; display: block;" />
+            <img src="${logoPath}" alt="Garcia Turismo" style="height: 54px; width: auto; margin: 0; object-fit: contain; display: block;" />
             <p style="font-size: 12px; color: #64748b; margin: 6px 0 0;">Fretamento Turístico, Executivo e Logística de Passageiros</p>
           </div>
           <div style="text-align: right; font-size: 12px; color: #334155;">
@@ -1156,7 +1187,7 @@ export function createViagensController({
 
         <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 14px; margin-bottom: 16px;">
           <div style="display: flex; align-items: center; gap: 12px;">
-            <img src="${logoPath}" alt="Garcia Turismo" style="height: 44px; width: auto; object-fit: contain;" />
+            <img src="${logoPath}" alt="Garcia Turismo" style="height: 44px; width: auto; margin: 0; object-fit: contain;" />
             <div>
               <div style="font-size: 16px; font-weight: 800; color: #0f172a;">Análise Operacional #${escapeHtml(trip.orcamentoNum || "-")}</div>
               <div style="font-size: 12px; color: #64748b;">Cliente: ${escapeHtml(trip.client || "-")} · ${escapeHtml(trip.origin || "-")} → ${escapeHtml(trip.destination || "-")}</div>
@@ -1554,7 +1585,37 @@ export function createViagensController({
     $("#tripPreviewCard")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function exportSelectedPdf() {
+  function persistProposalSnapshot(payload) {
+    // Serializa apenas dados planos (sem state.charts ou referências circulares do Chart.js)
+    const safeVehicles = (state.data.vehicles || []).map((v) => ({
+      id: v.id,
+      nome: v.nome || "",
+      modelo: v.modelo || "",
+      ano: v.ano || "",
+      cor: v.cor || "",
+      placa: v.placa || "",
+      capacidade: v.capacidade || v.lugares || 46,
+      lugares: v.lugares || v.capacidade || 46,
+      tipo: v.tipo || "onibus",
+      layout: v.layout || "onibus_46",
+      consumoKmPorLitro: v.consumoKmPorLitro || 0,
+    }));
+    const safeTrips = [
+      payload,
+      ...(state.data.trips || []).filter((t) => t.id !== payload.id),
+    ];
+    try {
+      localStorage.setItem(
+        "garcia_turismo_state_backup",
+        JSON.stringify({ data: { vehicles: safeVehicles, trips: safeTrips } }),
+      );
+      localStorage.setItem("garcia_turismo_current_orcamento", JSON.stringify(payload));
+    } catch (storageErr) {
+      console.warn("Aviso ao salvar cache local da proposta:", storageErr);
+    }
+  }
+
+  function resolveActiveProposalPayload() {
     let payload = state.ui.tripPreviewData;
     const formOpen = !$("#tripFormCard")?.classList.contains("hidden-section");
     if (formOpen) {
@@ -1564,29 +1625,99 @@ export function createViagensController({
         state.ui.tripPreviewData = currentDraft;
       }
     }
-
     if (!payload) {
       showToast("Abra ou preencha uma proposta antes de exportar o PDF.", "error");
+      return null;
+    }
+    persistProposalSnapshot(payload);
+    return payload;
+  }
+
+  function openPrintPreviewPage() {
+    const payload = resolveActiveProposalPayload();
+    if (!payload) return;
+    const mode = getSelectedPreviewType();
+    const targetPage = mode === "interno" ? "orcamento-interno.html" : "orcamento-cliente.html";
+    window.open(`${targetPage}?id=${encodeURIComponent(payload.id)}`, "_blank");
+  }
+
+  async function preloadLogo(src) {
+    if (!src) return;
+    await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve();
+      img.onerror = () => resolve();
+      img.src = src;
+    });
+  }
+
+  async function exportSelectedPdf(event) {
+    const payload = resolveActiveProposalPayload();
+    if (!payload) return;
+
+    renderTripPreview();
+    const mode = getSelectedPreviewType();
+    const cleanNum = String(payload.orcamentoNum || payload.id || today())
+      .replace(/[^a-zA-Z0-9_-]+/g, "_");
+    const filename =
+      mode === "interno"
+        ? `Planilha_Interna_${cleanNum}.pdf`
+        : `Proposta_Comercial_${cleanNum}.pdf`;
+
+    if (typeof html2pdf === "undefined") {
+      openPrintPreviewPage();
       return;
     }
 
-    const mode = getSelectedPreviewType();
-    const targetPage = mode === "interno" ? "orcamento-interno.html" : "orcamento-cliente.html";
+    const triggerBtn = event?.currentTarget || $("#tripExportPdfBtn");
+    const originalText = triggerBtn ? triggerBtn.textContent : "Exportar PDF";
+    if (triggerBtn) {
+      triggerBtn.disabled = true;
+      triggerBtn.textContent = "Gerando PDF...";
+    }
 
-    // Salva snapshot no localStorage para que a janela de impressão/PDF carregue dados salvos ou em edição
-    const stateSnapshot = {
-      ...state,
-      data: {
-        ...state.data,
-        trips: [
-          payload,
-          ...(state.data.trips || []).filter((t) => t.id !== payload.id),
-        ],
-      },
-    };
-    localStorage.setItem("garcia_turismo_state_backup", JSON.stringify(stateSnapshot));
-    localStorage.setItem("garcia_turismo_current_orcamento", JSON.stringify(payload));
-    window.open(`${targetPage}?id=${encodeURIComponent(payload.id)}`, "_blank");
+    try {
+      await preloadLogo(logoPath);
+      const wrapper = document.createElement("div");
+      wrapper.style.width = "716px";
+      wrapper.style.maxWidth = "100%";
+      wrapper.style.boxSizing = "border-box";
+      wrapper.style.background = "#ffffff";
+      wrapper.style.padding = "2px";
+      wrapper.innerHTML =
+        mode === "interno"
+          ? buildInternalProposalMarkup(payload)
+          : buildClientProposalMarkup(payload);
+      wrapper.querySelectorAll(".proposal-doc").forEach((docEl) => {
+        docEl.style.maxWidth = "100%";
+        docEl.style.width = "100%";
+        docEl.style.boxSizing = "border-box";
+        docEl.style.padding = "22px 24px";
+      });
+
+      await html2pdf()
+        .set({
+          margin: [0.25, 0.25, 0.25, 0.25],
+          filename,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, scrollY: 0, backgroundColor: "#ffffff" },
+          jsPDF: { unit: "in", format: "a4", orientation: "portrait" },
+          pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+        })
+        .from(wrapper)
+        .save();
+
+      showToast("Arquivo PDF salvo com sucesso.", "success");
+    } catch (error) {
+      console.error("Erro ao exportar PDF da proposta:", error);
+      showToast("Não foi possível baixar diretamente; abrindo página para salvar/imprimir.", "error");
+      openPrintPreviewPage();
+    } finally {
+      if (triggerBtn) {
+        triggerBtn.disabled = false;
+        triggerBtn.textContent = originalText;
+      }
+    }
   }
 
   function bindTrips() {
@@ -1662,6 +1793,7 @@ export function createViagensController({
       radio.addEventListener("change", renderTripPreview);
     });
 
+    $("#tripOpenPrintPageBtn")?.addEventListener("click", openPrintPreviewPage);
     $("#tripExportPdfBtn")?.addEventListener("click", exportSelectedPdf);
     $("#tripFormExportPdfBtn")?.addEventListener("click", exportSelectedPdf);
 

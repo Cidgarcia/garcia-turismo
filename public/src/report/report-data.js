@@ -33,6 +33,10 @@ function categoryLabel(value) {
   const labels = {
     combustivel: "Combustível",
     manutencao: "Manutenção",
+    pecas_manutencao: "Peças e manutenção",
+    materiais_limpeza: "Materiais de limpeza",
+    salarios_adiantamentos: "Salários / Adiantamentos",
+    viagens_extras: "Viagens por fora (Extras)",
     pedagio: "Pedágio",
     alimentacao: "Alimentação",
     outros: "Outros",

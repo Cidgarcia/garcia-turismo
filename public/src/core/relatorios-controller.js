@@ -393,18 +393,33 @@ export function createRelatoriosController({
     $("#exportFuelReportPdfBtn").addEventListener("click", exportFuelingPdf);
   }
 
-  async function exportFuelingPdf() {
-    const startDate = $("#fuelReportStart").value;
-    const endDate = $("#fuelReportEnd").value;
-    if (startDate && endDate && startDate > endDate) {
-      showToast("A data inicial não pode ser posterior à data final.", "error");
-      return;
-    }
+  async function preloadReportLogo() {
+    if (!logoPath) return;
+    await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve();
+      img.onerror = () => resolve();
+      img.src = logoPath;
+    });
+  }
 
-    renderFuelingReport();
-    const source = $("#fuelingReportArea").cloneNode(true);
+  function prepareExportSource(areaSelector, reportTitle) {
+    const source = $(areaSelector).cloneNode(true);
     source.classList.add("report-document");
+    source.style.width = "1040px";
+    source.style.background = "#ffffff";
+    source.style.padding = "16px";
+    source.style.boxShadow = "none";
     source.querySelectorAll(".no-print").forEach((element) => element.remove());
+    source.querySelectorAll("#reportLogo").forEach((element) => element.remove());
+    source.querySelectorAll(".table-wrap").forEach((element) => {
+      element.style.overflow = "visible";
+    });
+    source.querySelectorAll("table").forEach((element) => {
+      element.style.minWidth = "0";
+      element.style.width = "100%";
+    });
+
     const header = document.createElement("div");
     header.className = "report-export-header";
     const logo = document.createElement("img");
@@ -413,24 +428,44 @@ export function createRelatoriosController({
     const meta = document.createElement("div");
     meta.className = "report-export-header__meta";
     const title = document.createElement("div");
-    title.textContent = "Garcia Turismo — Relatório de Abastecimentos";
+    title.style.fontWeight = "700";
+    title.style.fontSize = "12px";
+    title.style.color = "#0f172a";
+    title.textContent = reportTitle;
     const issuedAt = document.createElement("div");
     issuedAt.textContent = `Emitido em ${new Date().toLocaleString("pt-BR")}`;
     meta.append(title, issuedAt);
     header.append(logo, meta);
     source.prepend(header);
+    return source;
+  }
 
-    const wrap = document.createElement("div");
-    wrap.className = "report-export-shell";
-    wrap.appendChild(source);
-    document.body.appendChild(wrap);
+  async function exportFuelingPdf() {
+    const startDate = $("#fuelReportStart").value;
+    const endDate = $("#fuelReportEnd").value;
+    if (startDate && endDate && startDate > endDate) {
+      showToast("A data inicial não pode ser posterior à data final.", "error");
+      return;
+    }
+
+    const btn = $("#exportFuelReportPdfBtn");
+    const oldText = btn ? btn.textContent : "Gerar PDF de abastecimentos";
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Gerando PDF...";
+    }
+
+    renderFuelingReport();
+    await preloadReportLogo();
+    const source = prepareExportSource("#fuelingReportArea", "Garcia Turismo — Relatório de Abastecimentos");
+
     try {
       if (typeof html2pdf !== "undefined") {
         await html2pdf().set({
-          margin: 0.28,
+          margin: 0.25,
           filename: `relatorio_abastecimentos_${today()}.pdf`,
           image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+          html2canvas: { scale: 2, useCORS: true, scrollY: 0, backgroundColor: "#ffffff" },
           jsPDF: { unit: "in", format: "a4", orientation: "landscape" },
           pagebreak: { mode: ["avoid-all", "css", "legacy"] },
         }).from(source).save();
@@ -446,35 +481,32 @@ export function createRelatoriosController({
       console.error(error);
       showToast("Erro ao gerar o relatório de abastecimentos.", "error");
     } finally {
-      document.body.removeChild(wrap);
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = oldText;
+      }
     }
   }
 
   async function exportPdf() {
+    const btn = $("#exportPdfBtn");
+    const oldText = btn ? btn.textContent : "Gerar PDF";
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Gerando PDF...";
+    }
+
     renderReport();
-    const source = $("#reportArea").cloneNode(true);
-    source.classList.add("report-document");
-    source.querySelectorAll(".no-print").forEach((element) => element.remove());
-    const header = document.createElement("div");
-    header.className = "report-export-header";
-    header.innerHTML = `
-          <div><img src="${logoPath}" alt="Garcia Turismo"></div>
-          <div class="report-export-header__meta">
-            <div>Relatório Garcia Turismo</div>
-            <div>Emitido em ${new Date().toLocaleString("pt-BR")}</div>
-          </div>`;
-    source.prepend(header);
-    const wrap = document.createElement("div");
-    wrap.className = "report-export-shell";
-    wrap.appendChild(source);
-    document.body.appendChild(wrap);
+    await preloadReportLogo();
+    const source = prepareExportSource("#reportArea", "Garcia Turismo — Relatório Financeiro");
+
     try {
       if (typeof html2pdf !== "undefined") {
         await html2pdf().set({
-          margin: 0.28,
+          margin: 0.25,
           filename: `relatorio_garcia_turismo_${today()}.pdf`,
           image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+          html2canvas: { scale: 2, useCORS: true, scrollY: 0, backgroundColor: "#ffffff" },
           jsPDF: { unit: "in", format: "a4", orientation: "landscape" },
           pagebreak: { mode: ["avoid-all", "css", "legacy"] },
         }).from(source).save();
@@ -488,9 +520,12 @@ export function createRelatoriosController({
       showToast("PDF gerado com sucesso.", "success");
     } catch (error) {
       console.error(error);
-      showToast("Erro ao gerar o relatório. Tente abrir com Live Server.", "error");
+      showToast("Erro ao gerar o relatório.", "error");
     } finally {
-      document.body.removeChild(wrap);
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = oldText;
+      }
     }
   }
 

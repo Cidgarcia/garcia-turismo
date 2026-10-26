@@ -4,7 +4,7 @@ export function renderRelatoriosTab() {
       <div id="reportArea" class="card p-6 space-y-5">
         <div class="flex flex-wrap items-center justify-between gap-4">
           <div class="flex items-center gap-4">
-            <img loading="lazy" id="reportLogo" alt="Garcia Turismo" class="logo-report" />
+            <img id="reportLogo" alt="Garcia Turismo" class="logo-report" />
             <div>
               <h2 class="text-2xl font-semibold">Relatórios financeiros</h2>
               <p class="muted mt-1">Lista única com despesas, combustível e pagamentos futuros.</p>
