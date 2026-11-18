@@ -99,16 +99,24 @@ export function renderViagensTab() {
                 </select>
               </div>
               <div>
-                <label class="block text-sm font-medium mb-2">Responsável *</label>
-                <input id="tripResponsible" list="tripResponsibleSuggestions" class="field" type="text" placeholder="Cid Augusto Garcia de Souza" required />
+                <label class="block text-sm font-medium mb-2">Responsável (Contratada) *</label>
+                <input id="tripResponsible" list="tripResponsibleSuggestions" class="field" type="text" placeholder="Cid Augusto Garcia de Souza Junior" required />
               </div>
               <div>
-                <label class="block text-sm font-medium mb-2">Cliente / Contratante *</label>
-                <input id="tripClient" class="field" type="text" placeholder="Nome completo ou empresa" required />
+                <label class="block text-sm font-medium mb-2">Contratante (Nome ou Razão Social) *</label>
+                <input id="tripClient" class="field" type="text" placeholder="Nome completo ou razão social" required />
               </div>
               <div>
-                <label class="block text-sm font-medium mb-2">WhatsApp / Telefone do Cliente</label>
+                <label class="block text-sm font-medium mb-2">WhatsApp / Telefone do Contratante</label>
                 <input id="tripClientPhone" class="field" type="text" placeholder="(74) 99999-0000" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2">CPF ou CNPJ do Contratante</label>
+                <input id="tripClientDoc" class="field" type="text" placeholder="Informe o CPF ou CNPJ para assinatura" />
+              </div>
+              <div class="md:col-span-2">
+                <label class="block text-sm font-medium mb-2">Nome do Representante (Contratante)</label>
+                <input id="tripClientRepresentative" class="field" type="text" placeholder="Nome completo do representante legal (ou próprio contratante)" />
               </div>
             </div>
           </div>
@@ -430,9 +438,14 @@ export function renderViagensTab() {
 
           <!-- SEÇÃO 6: CONDIÇÕES COMERCIAIS -->
           <div class="p-5 rounded-2xl border border-slate-200 bg-white space-y-4">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h4 class="text-base font-bold text-slate-900">6. Condições comerciais</h4>
-              <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Contrato e Pagamento</span>
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div>
+                <h4 class="text-base font-bold text-slate-900">6. Condições comerciais e contratuais</h4>
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Cláusulas de Pagamento, Responsabilidades e Cancelamento</span>
+              </div>
+              <button type="button" id="tripApplyStandardClausesBtn" class="rounded-xl px-3 py-1.5 btn-secondary font-semibold text-xs">
+                Aplicar cláusulas revisadas padrão
+              </button>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -452,32 +465,32 @@ export function renderViagensTab() {
 
             <div>
               <label class="block text-sm font-medium mb-2">Forma e Condições de Pagamento</label>
-              <input id="tripPaymentTerms" class="field" type="text" value="30% de sinal na confirmação e saldo restante até 5 dias antes do embarque." />
+              <textarea id="tripPaymentTerms" class="field min-h-[72px]">Sinal de 30% no ato da confirmação para bloqueio de agenda e saldo restante quitado até 5 (cinco) dias antes do embarque (ou na data de vencimento acordada). A saída do veículo fica condicionada à quitação integral prévia. Desvios de rota, km excedente ou extensão de horário solicitados pelo CONTRATANTE dependerão de viabilidade operacional/legal e serão cobrados à parte.</textarea>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium mb-2">O que está INCLUSO no serviço contratado</label>
-                <textarea id="tripIncluded" class="field min-h-[90px]">Transporte fretado ida e volta, combustível, motorista(s), pedágios e taxas de rodagem.</textarea>
+                <textarea id="tripIncluded" class="field min-h-[90px]">Transporte fretado ida e volta conforme itinerário contratado, combustível, motorista(s) habilitado(s), pedágios previstos na rota original e taxas regulares de rodagem.</textarea>
               </div>
               <div>
                 <label class="block text-sm font-medium mb-2">O que NÃO está incluso</label>
-                <textarea id="tripNotIncluded" class="field min-h-[90px]">Hospedagem de passageiros, alimentação de passageiros, ingressos e deslocamentos fora do roteiro contratado.</textarea>
+                <textarea id="tripNotIncluded" class="field min-h-[90px]">Hospedagem e alimentação de passageiros, ingressos, taxas turísticas/ambientais municipais, balsas, estacionamentos não previstos na proposta e deslocamentos extras fora do roteiro contratado.</textarea>
               </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium mb-2">Regras de Embarque e Viagem</label>
-                <textarea id="tripRules" class="field min-h-[100px]">- Tolerância de atraso no embarque: 15 minutos.
-- Bagagem: 1 mala no bagageiro e 1 volume de mão por passageiro.
-- Proibido o consumo de bebidas alcoólicas e fumo no interior do veículo.
-- Menores de 16 anos desacompanhados necessitam de autorização legal.</textarea>
+                <label class="block text-sm font-medium mb-2">Atrasos, Danos e Responsabilidades das Partes</label>
+                <textarea id="tripRules" class="field min-h-[150px]">- ATRASOS: Tolerância de até 30 minutos nos horários de embarque e retorno. Atrasos superiores do grupo poderão exigir readequação do roteiro (respeitando o descanso legal do motorista) e cobrança de hora parada/diária extra. A CONTRATADA não responde por atrasos causados por trânsito, interdições de vias, clima ou fiscalizações; em caso de falha mecânica, providenciará reparo ou substituição por veículo compatível em tempo hábil.
+- DANOS E CONSERVAÇÃO: O CONTRATANTE responde por danos causados ao veículo, poltronas, vidros, equipamentos ou sanitário pelos passageiros (facultada vistoria no início e término), com reembolso mediante orçamento/nota fiscal em até 5 dias úteis, além de taxa de higienização especial em caso de sujeira extrema. Proibido fumar, consumir álcool em excesso ou exceder a lotação de poltronas.
+- RESPONSABILIDADES: A CONTRATADA fornecerá veículo limpo, revisado e regularizado. O CONTRATANTE deve enviar a lista oficial de passageiros (nome e documento) até 48h antes da saída e garantir o porte de documentos originais e autorizações de menores. Bagagem: 1 mala no bagageiro e 1 volume de mão por passageiro (objetos de valor no salão durante paradas ficam sob guarda exclusiva do passageiro).</textarea>
               </div>
               <div>
-                <label class="block text-sm font-medium mb-2">Política de Reserva e Cancelamento</label>
-                <textarea id="tripCancellationPolicy" class="field min-h-[100px]">- A reserva da data e do veículo é confirmada mediante pagamento do sinal.
-- Cancelamentos com até 7 dias de antecedência possuem devolução integral do sinal; após esse prazo, aplica-se retenção para cobertura de custos operacionais.</textarea>
+                <label class="block text-sm font-medium mb-2">Política de Reserva, Cancelamento e Reembolso</label>
+                <textarea id="tripCancellationPolicy" class="field min-h-[150px]">- RESERVA E INADIMPLÊNCIA: O bloqueio do veículo somente se confirma após compensação do sinal. O não pagamento do saldo até o vencimento faculta à CONTRATADA cancelar a viagem após aviso prévio de 24h, aplicando-se as retenções abaixo.
+- CANCELAMENTO PELO CONTRATANTE: (a) Com 30 dias ou mais antes do embarque: retenção de 20% sobre o sinal para custos administrativos e reembolso de 80% em até 10 dias úteis (ou crédito integral para remarcação em até 90 dias, conforme disponibilidade); (b) Entre 15 e 29 dias antes: retenção de 50% do sinal pago; (c) Com menos de 15 dias do embarque ou não comparecimento (no-show): retenção de 100% do sinal (limitada a 30% do valor total do contrato).
+- CANCELAMENTO PELA CONTRATADA OU FORÇA MAIOR: Havendo cancelamento por culpa exclusiva da CONTRATADA sem oferta de veículo equivalente, haverá devolução integral (100%) dos valores pagos em até 5 dias úteis. Em caso de força maior (interdição oficial de vias ou calamidade), a viagem poderá ser remarcada sem multa, sujeita à disponibilidade de agenda.</textarea>
               </div>
             </div>
           </div>

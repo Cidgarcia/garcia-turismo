@@ -1523,3 +1523,22 @@ body {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* Proteção contra quebra de página nos blocos de assinaturas digitais na impressão/PDF */
+.digital-signatures-section,
+.digital-signature-card,
+.avoid-page-break {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+}
+
+@media print {
+  .digital-signatures-section,
+  .digital-signature-card,
+  .avoid-page-break {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    -webkit-column-break-inside: avoid !important;
+  }
+}

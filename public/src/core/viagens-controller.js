@@ -25,6 +25,57 @@ const CONFIRMED_STATUSES = new Set(["Confirmada", "Aprovado", "Aprovada", "Reali
 const CANCELLED_STATUSES = new Set(["Cancelada"]);
 const INACTIVE_PROPOSAL_STATUSES = new Set(["Cancelada", "Recusado", "Expirado"]);
 
+export const CONTRATADA_LEGAL_INFO = Object.freeze({
+  razaoSocial: "GARCIA CONSTRUÇÕES E TURISMO LTDA",
+  nomeFantasia: "Garcia Turismo",
+  cnpj: "62.355.676/0001-55",
+  representantePadrao: "Cid Augusto Garcia de Souza Junior",
+});
+
+export const DEFAULT_TRIP_CLAUSES = Object.freeze({
+  paymentTerms:
+    "Sinal de 30% no ato da confirmação para bloqueio de agenda e saldo restante quitado até 5 (cinco) dias antes do embarque (ou na data de vencimento acordada). A saída do veículo fica condicionada à quitação integral prévia. Desvios de rota, km excedente ou extensão de horário solicitados pelo CONTRATANTE dependerão de viabilidade operacional/legal e serão cobrados à parte.",
+  included:
+    "Transporte fretado ida e volta conforme itinerário contratado, combustível, motorista(s) habilitado(s), pedágios previstos na rota original e taxas regulares de rodagem.",
+  notIncluded:
+    "Hospedagem e alimentação de passageiros, ingressos, taxas turísticas/ambientais municipais, balsas, estacionamentos não previstos na proposta e deslocamentos extras fora do roteiro contratado.",
+  rules:
+    "- ATRASOS: Tolerância de até 30 minutos nos horários de embarque e retorno. Atrasos superiores do grupo poderão exigir readequação do roteiro (respeitando o descanso legal do motorista) e cobrança de hora parada/diária extra. A CONTRATADA não responde por atrasos causados por trânsito, interdições de vias, clima ou fiscalizações; em caso de falha mecânica, providenciará reparo ou substituição por veículo compatível em tempo hábil.\n- DANOS E CONSERVAÇÃO: O CONTRATANTE responde por danos causados ao veículo, poltronas, vidros, equipamentos ou sanitário pelos passageiros (facultada vistoria no início e término), com reembolso mediante orçamento/nota fiscal em até 5 dias úteis, além de taxa de higienização especial em caso de sujeira extrema. Proibido fumar, consumir álcool em excesso ou exceder a lotação de poltronas.\n- RESPONSABILIDADES: A CONTRATADA fornecerá veículo limpo, revisado e regularizado. O CONTRATANTE deve enviar a lista oficial de passageiros (nome e documento) até 48h antes da saída e garantir o porte de documentos originais e autorizações de menores. Bagagem: 1 mala no bagageiro e 1 volume de mão por passageiro (objetos de valor no salão durante paradas ficam sob guarda exclusiva do passageiro).",
+  cancellationPolicy:
+    "- RESERVA E INADIMPLÊNCIA: O bloqueio do veículo somente se confirma após compensação do sinal. O não pagamento do saldo até o vencimento faculta à CONTRATADA cancelar a viagem após aviso prévio de 24h, aplicando-se as retenções abaixo.\n- CANCELAMENTO PELO CONTRATANTE: (a) Com 30 dias ou mais antes do embarque: retenção de 20% sobre o sinal para custos administrativos e reembolso de 80% em até 10 dias úteis (ou crédito integral para remarcação em até 90 dias, conforme disponibilidade); (b) Entre 15 e 29 dias antes: retenção de 50% do sinal pago; (c) Com menos de 15 dias do embarque ou não comparecimento (no-show): retenção de 100% do sinal (limitada a 30% do valor total do contrato).\n- CANCELAMENTO PELA CONTRATADA OU FORÇA MAIOR: Havendo cancelamento por culpa exclusiva da CONTRATADA sem oferta de veículo equivalente, haverá devolução integral (100%) dos valores pagos em até 5 dias úteis. Em caso de força maior (interdição oficial de vias ou calamidade), a viagem poderá ser remarcada sem multa, sujeita à disponibilidade de frota.",
+});
+
+function encodeSignatureMetadata({ clientDoc = "", clientRepresentative = "" } = {}) {
+  const docClean = String(clientDoc || "").trim().slice(0, 40);
+  const repClean = String(clientRepresentative || "").trim().slice(0, 140);
+  if (!docClean && !repClean) return "";
+  return JSON.stringify({ sigMeta: 1, clientDoc: docClean, clientRepresentative: repClean }).slice(0, 1000);
+}
+
+function decodeSignatureMetadata(trip = {}) {
+  if (trip?.clientDoc || trip?.clientRepresentative) {
+    return {
+      clientDoc: String(trip.clientDoc || "").trim(),
+      clientRepresentative: String(trip.clientRepresentative || "").trim(),
+    };
+  }
+  const raw = String(trip?.paymentInstallmentNotes || "").trim();
+  if (raw.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.sigMeta === 1) {
+        return {
+          clientDoc: String(parsed.clientDoc || "").trim(),
+          clientRepresentative: String(parsed.clientRepresentative || "").trim(),
+        };
+      }
+    } catch {
+      // ignore malformed json
+    }
+  }
+  return { clientDoc: "", clientRepresentative: "" };
+}
+
 export function generateUniqueOrcamentoNum(existingTrips = [], dateStr = today()) {
   const cleanDate = String(dateStr || today()).replace(/-/g, "");
   const yearPrefix = cleanDate.slice(0, 4) || String(new Date().getFullYear());
@@ -654,6 +705,8 @@ export function createViagensController({
     $("#tripOrcamentoNum").value = generateUniqueOrcamentoNum(state.data.trips, emission);
     $("#tripValidadeDias").value = "7";
     $("#tripClientPhone").value = "";
+    if ($("#tripClientDoc")) $("#tripClientDoc").value = "";
+    if ($("#tripClientRepresentative")) $("#tripClientRepresentative").value = "";
     $("#tripBoardingPlace").value = "";
     $("#tripDepartureDate").value = emission;
     $("#tripReturnDate").value = emission;
@@ -694,11 +747,11 @@ export function createViagensController({
     $("#tripDepositSignalValue").value = "";
     $("#tripDepositPaidValue").value = "";
     $("#tripBalanceDueDate").value = "";
-    $("#tripPaymentTerms").value = "30% de sinal na confirmação e saldo restante até 5 dias antes do embarque.";
-    $("#tripIncluded").value = "Transporte fretado ida e volta, combustível, motorista(s), pedágios e taxas de rodagem.";
-    $("#tripNotIncluded").value = "Hospedagem de passageiros, alimentação de passageiros, ingressos e deslocamentos fora do roteiro contratado.";
-    $("#tripRules").value = "- Tolerância de atraso no embarque: 15 minutos.\n- Bagagem: 1 mala no bagageiro e 1 volume de mão por passageiro.\n- Proibido o consumo de bebidas alcoólicas e fumo no interior do veículo.\n- Menores de 16 anos desacompanhados necessitam de autorização legal.";
-    $("#tripCancellationPolicy").value = "- A reserva da data e do veículo é confirmada mediante pagamento do sinal.\n- Cancelamentos com até 7 dias de antecedência possuem devolução integral do sinal; após esse prazo, aplica-se retenção para cobertura de custos operacionais.";
+    $("#tripPaymentTerms").value = DEFAULT_TRIP_CLAUSES.paymentTerms;
+    $("#tripIncluded").value = DEFAULT_TRIP_CLAUSES.included;
+    $("#tripNotIncluded").value = DEFAULT_TRIP_CLAUSES.notIncluded;
+    $("#tripRules").value = DEFAULT_TRIP_CLAUSES.rules;
+    $("#tripCancellationPolicy").value = DEFAULT_TRIP_CLAUSES.cancellationPolicy;
 
     tripOtherCostsState = [];
     renderTripOtherCostsRows();
@@ -892,6 +945,8 @@ export function createViagensController({
     const responsible = ($("#tripResponsible")?.value || "").trim();
     const client = ($("#tripClient")?.value || "").trim();
     const clientPhone = ($("#tripClientPhone")?.value || "").trim();
+    const clientDoc = ($("#tripClientDoc")?.value || "").trim();
+    const clientRepresentative = ($("#tripClientRepresentative")?.value || "").trim();
     const origin = ($("#tripOrigin")?.value || "").trim();
     const boardingPlace = ($("#tripBoardingPlace")?.value || "").trim();
     const destination = ($("#tripDestination")?.value || "").trim();
@@ -1053,6 +1108,7 @@ export function createViagensController({
       depositSignalValue,
       depositPaidValue,
       balanceDueDate: balanceDueDate.slice(0, 40),
+      paymentInstallmentNotes: encodeSignatureMetadata({ clientDoc, clientRepresentative }),
       paymentTerms,
       included,
       notIncluded,
@@ -1074,6 +1130,14 @@ export function createViagensController({
     const depositSignal = Number(trip.depositSignalValue || 0);
     const depositPaid = Number(trip.depositPaidValue || 0);
     const balanceRemaining = Math.max(0, Number(trip.finalValue || 0) - depositPaid);
+    const sigMeta = decodeSignatureMetadata(trip);
+    const contratanteNome = trip.client && trip.client !== "Cliente" ? trip.client : "A preencher";
+    const contratanteDoc = sigMeta.clientDoc || "A preencher";
+    const contratanteRep = sigMeta.clientRepresentative || (trip.client && trip.client !== "Cliente" ? trip.client : "A preencher");
+    const contratadaRep =
+      trip.responsible && trip.responsible !== "Responsável"
+        ? trip.responsible
+        : CONTRATADA_LEGAL_INFO.representantePadrao;
 
     return `
       <div class="proposal-doc" style="max-width: 820px; margin: 0 auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px 32px;">
@@ -1083,16 +1147,18 @@ export function createViagensController({
             <p style="font-size: 12px; color: #64748b; margin: 6px 0 0;">Fretamento Turístico, Executivo e Logística de Passageiros</p>
           </div>
           <div style="text-align: right; font-size: 12px; color: #334155;">
-            <div style="font-size: 15px; font-weight: 800; color: #0f172a;">PROPOSTA COMERCIAL #${escapeHtml(trip.orcamentoNum || "-")}</div>
+            <div style="font-size: 15px; font-weight: 800; color: #0f172a;">PROPOSTA E CONTRATO DE FRETAMENTO #${escapeHtml(trip.orcamentoNum || "-")}</div>
             <div>Emissão: <strong>${escapeHtml(formatDateBR(emissaoIso))}</strong></div>
             <div style="color: #b91c1c; font-weight: 700;">Válida até: ${escapeHtml(formatDateBR(validadeIso))} (${Number(trip.validadeDias || 7)} dias)</div>
           </div>
         </div>
 
         <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; font-size: 13px;">
-          <div><strong>Cliente:</strong> ${escapeHtml(trip.client || "-")}</div>
+          <div><strong>Contratante:</strong> ${escapeHtml(trip.client || "-")}</div>
           <div><strong>WhatsApp / Contato:</strong> ${escapeHtml(trip.clientPhone || "Não informado")}</div>
-          <div><strong>Responsável Comercial:</strong> ${escapeHtml(trip.responsible || "-")}</div>
+          ${sigMeta.clientDoc ? `<div><strong>CPF / CNPJ:</strong> ${escapeHtml(sigMeta.clientDoc)}</div>` : ""}
+          ${sigMeta.clientRepresentative ? `<div><strong>Representante:</strong> ${escapeHtml(sigMeta.clientRepresentative)}</div>` : ""}
+          <div><strong>Responsável Comercial:</strong> ${escapeHtml(contratadaRep)}</div>
           <div><strong>Passageiros / Lotação:</strong> ${passengers > 0 ? `${passengers} passageiros previstos` : `${totalCap} lugares disponíveis`}</div>
           <div><strong>Origem:</strong> ${escapeHtml(trip.origin || "-")} ${trip.boardingPlace ? `(Embarque: ${escapeHtml(trip.boardingPlace)})` : ""}</div>
           <div><strong>Destino Final:</strong> ${escapeHtml(trip.destination || "-")}</div>
@@ -1124,7 +1190,7 @@ export function createViagensController({
               </tr>
             ` : ""}
             <tr style="background: #fef2f2; font-weight: 800; font-size: 15px;">
-              <td style="padding: 12px; color: #991b1b;">VALOR FINAL DA PROPOSTA</td>
+              <td style="padding: 12px; color: #991b1b;">VALOR FINAL DO FRETAMENTO</td>
               <td style="padding: 12px; text-align: right; color: #991b1b;">${escapeHtml(currency(trip.finalValue))}</td>
             </tr>
             ${pricePerPassenger > 0 ? `
@@ -1136,40 +1202,80 @@ export function createViagensController({
           </tbody>
         </table>
 
-        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; font-size: 12.5px; margin-bottom: 16px;">
+        <div class="avoid-page-break" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; font-size: 12.5px; margin-bottom: 14px; break-inside: avoid; page-break-inside: avoid;">
           <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px;">
             <strong style="color: #15803d; display: block; margin-bottom: 4px;">✓ O QUE ESTÁ INCLUSO</strong>
-            <div style="white-space: pre-line; color: #334155;">${escapeHtml(trip.included || "Transporte fretado conforme roteiro contratado.")}</div>
+            <div style="white-space: pre-line; color: #334155;">${escapeHtml(trip.included || DEFAULT_TRIP_CLAUSES.included)}</div>
           </div>
           <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px;">
             <strong style="color: #b91c1c; display: block; margin-bottom: 4px;">✕ O QUE NÃO ESTÁ INCLUSO</strong>
-            <div style="white-space: pre-line; color: #334155;">${escapeHtml(trip.notIncluded || "Despesas pessoais, ingressos e itens não especificados.")}</div>
+            <div style="white-space: pre-line; color: #334155;">${escapeHtml(trip.notIncluded || DEFAULT_TRIP_CLAUSES.notIncluded)}</div>
           </div>
         </div>
 
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; font-size: 12.5px; margin-bottom: 16px; space-y: 6px;">
-          <div><strong>Condições de Pagamento:</strong> ${escapeHtml(trip.paymentTerms || "A combinar.")}</div>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; font-size: 12px; line-height: 1.5; margin-bottom: 14px; color: #334155;">
+          <div><strong style="color: #0f172a;">Cláusula de Pagamento e Quitação:</strong> ${escapeHtml(trip.paymentTerms || DEFAULT_TRIP_CLAUSES.paymentTerms)}</div>
           ${depositSignal > 0 || depositPaid > 0 || trip.balanceDueDate ? `
-            <div style="margin-top: 6px; color: #334155;">
+            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #cbd5e1; color: #0f172a;">
               ${depositSignal > 0 ? `Sinal previsto: <strong>${escapeHtml(currency(depositSignal))}</strong> · ` : ""}
-              ${depositPaid > 0 ? `Sinal pago: <strong>${escapeHtml(currency(depositPaid))}</strong> · Saldo: <strong>${escapeHtml(currency(balanceRemaining))}</strong> · ` : ""}
+              ${depositPaid > 0 ? `Sinal pago: <strong>${escapeHtml(currency(depositPaid))}</strong> · Saldo restante: <strong>${escapeHtml(currency(balanceRemaining))}</strong> · ` : ""}
               ${trip.balanceDueDate ? `Vencimento do saldo: <strong>${escapeHtml(formatDateBR(trip.balanceDueDate))}</strong>` : ""}
             </div>
           ` : ""}
-          ${trip.rules ? `<div style="margin-top: 8px; white-space: pre-line;"><strong>Regras de Viagem:</strong>\n${escapeHtml(trip.rules)}</div>` : ""}
-          ${trip.cancellationPolicy ? `<div style="margin-top: 8px; white-space: pre-line;"><strong>Reserva e Cancelamento:</strong>\n${escapeHtml(trip.cancellationPolicy)}</div>` : ""}
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; padding-top: 18px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #475569;">
-          <div>
-            <strong>Garcia Turismo</strong><br />
-            WhatsApp: (74) 98816-4009 · E-mail: garciaturismoeviagens@gmail.com
-          </div>
-          <div style="text-align: center; min-width: 240px;">
-            <div style="border-bottom: 1px solid #334155; height: 24px; margin-bottom: 4px;"></div>
-            <span>De acordo — Assinatura do Contratante</span>
-          </div>
+        <div style="background: #f8fafc; border-left: 4px solid #dc2626; border-top: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; border-radius: 0 10px 10px 0; padding: 12px 14px; font-size: 11.8px; line-height: 1.5; margin-bottom: 14px; color: #334155;">
+          <div style="white-space: pre-line;"><strong style="color: #991b1b; text-transform: uppercase; font-size: 11.5px; letter-spacing: 0.4px;">Atrasos, Danos e Responsabilidades das Partes</strong>\n${escapeHtml(trip.rules || DEFAULT_TRIP_CLAUSES.rules)}</div>
+          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e2e8f0; white-space: pre-line;"><strong style="color: #991b1b; text-transform: uppercase; font-size: 11.5px; letter-spacing: 0.4px;">Reserva, Cancelamento e Reembolso</strong>\n${escapeHtml(trip.cancellationPolicy || DEFAULT_TRIP_CLAUSES.cancellationPolicy)}</div>
         </div>
+
+        <section class="digital-signatures-section avoid-page-break" style="margin-top: 20px; padding-top: 16px; border-top: 2px solid #e2e8f0; break-inside: avoid; page-break-inside: avoid; -webkit-column-break-inside: avoid;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+            <div style="font-size: 12.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: #b91c1c;">
+              ASSINATURAS DIGITAIS
+            </div>
+            <div style="font-size: 11.5px; font-weight: 600; color: #475569; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 999px; padding: 3px 10px;">
+              Este documento será assinado digitalmente pelas partes.
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;">
+            <div class="digital-signature-card" style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; break-inside: avoid; page-break-inside: avoid;">
+              <div style="font-size: 12px; line-height: 1.5; color: #1e293b; margin-bottom: 10px;">
+                <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; color: #b91c1c; margin-bottom: 6px;">
+                  CONTRATANTE
+                </div>
+                <div><strong>Nome / Razão Social:</strong> ${escapeHtml(contratanteNome)}</div>
+                <div><strong>CPF / CNPJ:</strong> ${escapeHtml(contratanteDoc)}</div>
+                <div><strong>Representante:</strong> ${escapeHtml(contratanteRep)}</div>
+              </div>
+              <div style="min-height: 78px; border: 1.5px dashed #94a3b8; border-radius: 10px; background: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px; text-align: center;">
+                <span style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.4px;">Assinatura Digital — Contratante</span>
+                <span style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">Espaço reservado para validação por plataforma eletrônica</span>
+              </div>
+            </div>
+
+            <div class="digital-signature-card" style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; break-inside: avoid; page-break-inside: avoid;">
+              <div style="font-size: 12px; line-height: 1.5; color: #1e293b; margin-bottom: 10px;">
+                <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; color: #b91c1c; margin-bottom: 6px;">
+                  CONTRATADA
+                </div>
+                <div><strong>Razão Social:</strong> ${escapeHtml(CONTRATADA_LEGAL_INFO.razaoSocial)}</div>
+                <div><strong>CNPJ:</strong> ${escapeHtml(CONTRATADA_LEGAL_INFO.cnpj)}</div>
+                <div><strong>Representante:</strong> ${escapeHtml(contratadaRep)}</div>
+              </div>
+              <div style="min-height: 78px; border: 1.5px dashed #94a3b8; border-radius: 10px; background: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px; text-align: center;">
+                <span style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.4px;">Assinatura Digital — Contratada</span>
+                <span style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">Espaço reservado para validação por plataforma eletrônica</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 11px; color: #64748b;">
+            <div><strong>Garcia Turismo</strong> · (${escapeHtml(CONTRATADA_LEGAL_INFO.razaoSocial)} — CNPJ ${escapeHtml(CONTRATADA_LEGAL_INFO.cnpj)})</div>
+            <div>WhatsApp: (74) 98816-4009 · E-mail: garciaturismoeviagens@gmail.com</div>
+          </div>
+        </section>
       </div>
     `;
   }
@@ -1487,6 +1593,9 @@ export function createViagensController({
     $("#tripResponsible").value = trip.responsible || "";
     $("#tripClient").value = trip.client || "";
     $("#tripClientPhone").value = trip.clientPhone || "";
+    const sigMeta = decodeSignatureMetadata(trip);
+    if ($("#tripClientDoc")) $("#tripClientDoc").value = sigMeta.clientDoc || "";
+    if ($("#tripClientRepresentative")) $("#tripClientRepresentative").value = sigMeta.clientRepresentative || "";
     $("#tripStatus").value = trip.status || "Rascunho";
     $("#tripOrigin").value = trip.origin || "";
     $("#tripBoardingPlace").value = trip.boardingPlace || "";
@@ -1539,18 +1648,11 @@ export function createViagensController({
     $("#tripDepositSignalValue").value = trip.depositSignalValue || "";
     $("#tripDepositPaidValue").value = trip.depositPaidValue || "";
     $("#tripBalanceDueDate").value = trip.balanceDueDate || "";
-    $("#tripPaymentTerms").value =
-      trip.paymentTerms || "30% de sinal na confirmação e saldo restante até 5 dias antes do embarque.";
-    $("#tripIncluded").value =
-      trip.included || "Transporte fretado ida e volta, combustível, motorista(s), pedágios e taxas de rodagem.";
-    $("#tripNotIncluded").value =
-      trip.notIncluded || "Hospedagem de passageiros, alimentação de passageiros, ingressos e deslocamentos fora do roteiro contratado.";
-    $("#tripRules").value =
-      trip.rules ||
-      "- Tolerância de atraso no embarque: 15 minutos.\n- Bagagem: 1 mala no bagageiro e 1 volume de mão por passageiro.\n- Proibido o consumo de bebidas alcoólicas e fumo no interior do veículo.\n- Menores de 16 anos desacompanhados necessitam de autorização legal.";
-    $("#tripCancellationPolicy").value =
-      trip.cancellationPolicy ||
-      "- A reserva da data e do veículo é confirmada mediante pagamento do sinal.\n- Cancelamentos com até 7 dias de antecedência possuem devolução integral do sinal; após esse prazo, aplica-se retenção para cobertura de custos operacionais.";
+    $("#tripPaymentTerms").value = trip.paymentTerms || DEFAULT_TRIP_CLAUSES.paymentTerms;
+    $("#tripIncluded").value = trip.included || DEFAULT_TRIP_CLAUSES.included;
+    $("#tripNotIncluded").value = trip.notIncluded || DEFAULT_TRIP_CLAUSES.notIncluded;
+    $("#tripRules").value = trip.rules || DEFAULT_TRIP_CLAUSES.rules;
+    $("#tripCancellationPolicy").value = trip.cancellationPolicy || DEFAULT_TRIP_CLAUSES.cancellationPolicy;
 
     tripOtherCostsState = Array.isArray(trip.otherCosts) ? JSON.parse(JSON.stringify(trip.otherCosts)) : [];
     renderTripOtherCostsRows();
@@ -1702,7 +1804,10 @@ export function createViagensController({
           image: { type: "jpeg", quality: 0.98 },
           html2canvas: { scale: 2, useCORS: true, scrollY: 0, backgroundColor: "#ffffff" },
           jsPDF: { unit: "in", format: "a4", orientation: "portrait" },
-          pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+          pagebreak: {
+            mode: ["css", "legacy"],
+            avoid: [".digital-signatures-section", ".digital-signature-card", ".avoid-page-break"],
+          },
         })
         .from(wrapper)
         .save();
@@ -1869,6 +1974,46 @@ export function createViagensController({
       tripOtherCostsState.push({ nome: "", valor: 0 });
       renderTripOtherCostsRows();
       syncTripDirectCosts();
+    });
+
+    $("#tripApplyStandardClausesBtn")?.addEventListener("click", () => {
+      if ($("#tripPaymentTerms")) $("#tripPaymentTerms").value = DEFAULT_TRIP_CLAUSES.paymentTerms;
+      if ($("#tripNotIncluded")) $("#tripNotIncluded").value = DEFAULT_TRIP_CLAUSES.notIncluded;
+      if ($("#tripRules")) $("#tripRules").value = DEFAULT_TRIP_CLAUSES.rules;
+      if ($("#tripCancellationPolicy")) $("#tripCancellationPolicy").value = DEFAULT_TRIP_CLAUSES.cancellationPolicy;
+      syncTripDirectCosts();
+      showToast("Cláusulas contratuais revisadas aplicadas à proposta.", "success");
+    });
+
+    const livePreviewFields = [
+      "#tripResponsible",
+      "#tripClient",
+      "#tripClientPhone",
+      "#tripClientDoc",
+      "#tripClientRepresentative",
+      "#tripOrigin",
+      "#tripBoardingPlace",
+      "#tripDestination",
+      "#tripStops",
+      "#tripDepositSignalValue",
+      "#tripDepositPaidValue",
+      "#tripBalanceDueDate",
+      "#tripPaymentTerms",
+      "#tripIncluded",
+      "#tripNotIncluded",
+      "#tripRules",
+      "#tripCancellationPolicy",
+    ];
+    livePreviewFields.forEach((selector) => {
+      const el = $(selector);
+      if (!el) return;
+      el.addEventListener("input", () => {
+        const draft = buildTripPayloadFromForm({ silent: true, allowIncomplete: true });
+        if (draft) {
+          state.ui.tripPreviewData = draft;
+          renderTripPreview();
+        }
+      });
     });
   }
 

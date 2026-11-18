@@ -145,13 +145,83 @@
       }
       .footer-note {
         border-top: 1px solid #e2e8f0;
-        padding-top: 16px;
+        padding-top: 10px;
         display: flex;
         justify-content: space-between;
-        align-items: flex-end;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        font-size: 11px;
+        color: #64748b;
+        margin-top: 12px;
+      }
+      .digital-signatures-section {
+        margin-top: 22px;
+        padding-top: 16px;
+        border-top: 2px solid #e2e8f0;
+        break-inside: avoid;
+        page-break-inside: avoid;
+        -webkit-column-break-inside: avoid;
+      }
+      .digital-signatures-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .digital-signatures-badge {
         font-size: 11.5px;
+        font-weight: 600;
         color: #475569;
-        margin-top: 24px;
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        border-radius: 999px;
+        padding: 4px 12px;
+      }
+      .digital-signatures-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .digital-signature-card {
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        border-radius: 14px;
+        padding: 14px 16px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        break-inside: avoid;
+        page-break-inside: avoid;
+        -webkit-column-break-inside: avoid;
+      }
+      .digital-signature-meta {
+        font-size: 12px;
+        line-height: 1.55;
+        color: #1e293b;
+        margin-bottom: 12px;
+      }
+      .digital-signature-role {
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: #b91c1c;
+        margin-bottom: 6px;
+      }
+      .digital-signature-box {
+        min-height: 80px;
+        border: 1.5px dashed #94a3b8;
+        border-radius: 10px;
+        background: #ffffff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+        text-align: center;
       }
       .no-print-bar {
         max-width: 840px;
@@ -172,6 +242,14 @@
         }
         .no-print-bar {
           display: none !important;
+        }
+        .digital-signatures-section,
+        .digital-signature-card,
+        .seatmap-section,
+        .conditions-grid {
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
+          -webkit-column-break-inside: avoid !important;
         }
       }
     </style>
@@ -219,6 +297,49 @@
         return `${formatDateBR(dateIso)}${timeStr ? ` às ${timeStr}` : ""}`;
       }
 
+      const CONTRATADA_LEGAL_INFO = Object.freeze({
+        razaoSocial: "GARCIA CONSTRUÇÕES E TURISMO LTDA",
+        cnpj: "62.355.676/0001-55",
+        representantePadrao: "Cid Augusto Garcia de Souza Junior",
+      });
+
+      const DEFAULT_CLAUSES = Object.freeze({
+        formaPagamento:
+          "Sinal de 30% no ato da confirmação para bloqueio de agenda e saldo restante quitado até 5 (cinco) dias antes do embarque (ou na data de vencimento acordada). A saída do veículo fica condicionada à quitação integral prévia. Desvios de rota, km excedente ou extensão de horário solicitados pelo CONTRATANTE dependerão de viabilidade operacional/legal e serão cobrados à parte.",
+        incluso:
+          "Transporte fretado ida e volta conforme itinerário contratado, combustível, motorista(s) habilitado(s), pedágios previstos na rota original e taxas regulares de rodagem.",
+        naoIncluso:
+          "Hospedagem e alimentação de passageiros, ingressos, taxas turísticas/ambientais municipais, balsas, estacionamentos não previstos na proposta e deslocamentos extras fora do roteiro contratado.",
+        regrasGerais:
+          "- ATRASOS: Tolerância de até 30 minutos nos horários de embarque e retorno. Atrasos superiores do grupo poderão exigir readequação do roteiro (respeitando o descanso legal do motorista) e cobrança de hora parada/diária extra. A CONTRATADA não responde por atrasos causados por trânsito, interdições de vias, clima ou fiscalizações; em caso de falha mecânica, providenciará reparo ou substituição por veículo compatível em tempo hábil.\n- DANOS E CONSERVAÇÃO: O CONTRATANTE responde por danos causados ao veículo, poltronas, vidros, equipamentos ou sanitário pelos passageiros (facultada vistoria no início e término), com reembolso mediante orçamento/nota fiscal em até 5 dias úteis, além de taxa de higienização especial em caso de sujeira extrema. Proibido fumar, consumir álcool em excesso ou exceder a lotação de poltronas.\n- RESPONSABILIDADES: A CONTRATADA fornecerá veículo limpo, revisado e regularizado. O CONTRATANTE deve enviar a lista oficial de passageiros (nome e documento) até 48h antes da saída e garantir o porte de documentos originais e autorizações de menores. Bagagem: 1 mala no bagageiro e 1 volume de mão por passageiro (objetos de valor no salão durante paradas ficam sob guarda exclusiva do passageiro).",
+        politicaCancelamento:
+          "- RESERVA E INADIMPLÊNCIA: O bloqueio do veículo somente se confirma após compensação do sinal. O não pagamento do saldo até o vencimento faculta à CONTRATADA cancelar a viagem após aviso prévio de 24h, aplicando-se as retenções abaixo.\n- CANCELAMENTO PELO CONTRATANTE: (a) Com 30 dias ou mais antes do embarque: retenção de 20% sobre o sinal para custos administrativos e reembolso de 80% em até 10 dias úteis (ou crédito integral para remarcação em até 90 dias, conforme disponibilidade); (b) Entre 15 e 29 dias antes: retenção de 50% do sinal pago; (c) Com menos de 15 dias do embarque ou não comparecimento (no-show): retenção de 100% do sinal (limitada a 30% do valor total do contrato).\n- CANCELAMENTO PELA CONTRATADA OU FORÇA MAIOR: Havendo cancelamento por culpa exclusiva da CONTRATADA sem oferta de veículo equivalente, haverá devolução integral (100%) dos valores pagos em até 5 dias úteis. Em caso de força maior (interdição oficial de vias ou calamidade), a viagem poderá ser remarcada sem multa, sujeita à disponibilidade de frota.",
+      });
+
+      function parseSignatureMeta(raw) {
+        if (raw?.clientDoc || raw?.clientRepresentative || raw?.clienteDocumento || raw?.clienteRepresentante) {
+          return {
+            clientDoc: String(raw.clientDoc || raw.clienteDocumento || "").trim(),
+            clientRepresentative: String(raw.clientRepresentative || raw.clienteRepresentante || "").trim(),
+          };
+        }
+        const notes = String(raw?.paymentInstallmentNotes || "").trim();
+        if (notes.startsWith("{")) {
+          try {
+            const parsed = JSON.parse(notes);
+            if (parsed && parsed.sigMeta === 1) {
+              return {
+                clientDoc: String(parsed.clientDoc || "").trim(),
+                clientRepresentative: String(parsed.clientRepresentative || "").trim(),
+              };
+            }
+          } catch {
+            // ignore
+          }
+        }
+        return { clientDoc: "", clientRepresentative: "" };
+      }
+
       // SEGURANÇA: Filtra apenas campos comerciais para o documento do cliente (NUNCA inclui custos ou margem)
       function sanitizeClientPayload(raw) {
         if (!raw) return null;
@@ -226,13 +347,16 @@
         const emissaoIso = raw.emissaoDate || raw.emissionDate || raw.dataEmissao || "";
         const diasValidade = Number(raw.validadeDias || raw.diasValidade || 7);
         const dataValidade = raw.dataValidade || (emissaoIso ? addDaysISO(emissaoIso, diasValidade) : "");
+        const sigMeta = parseSignatureMeta(raw);
 
         return {
           id: raw.id,
           numeroSequencial: raw.orcamentoNum || raw.numeroSequencial || "-",
-          responsavel: raw.responsible || "Garcia Turismo",
+          responsavel: raw.responsible || CONTRATADA_LEGAL_INFO.representantePadrao,
           cliente: raw.client || raw.cliente || "Cliente",
           clienteTelefone: raw.clientPhone || raw.clienteTelefone || "",
+          clienteDocumento: sigMeta.clientDoc,
+          clienteRepresentante: sigMeta.clientRepresentative,
           numeroPassageiros: Number(raw.passengers || raw.numeroPassageiros || 0),
           capacidadeTotal: Number(raw.totalCapacity || raw.veiculo?.capacidade || raw.passengers || 46),
           quantidadeVeiculos: Number(raw.vehiclesQty || 1),
@@ -256,11 +380,11 @@
           diasValidade,
           dataValidade,
           condicoesComerciais: {
-            formaPagamento: raw.paymentTerms || raw.condicoesComerciais?.formaPagamento || "",
-            incluso: raw.included || raw.condicoesComerciais?.incluso || "",
-            naoIncluso: raw.notIncluded || raw.condicoesComerciais?.naoIncluso || "",
-            regrasGerais: raw.rules || raw.regrasViagem || raw.condicoesComerciais?.regrasGerais || "",
-            politicaCancelamento: raw.cancellationPolicy || "",
+            formaPagamento: raw.paymentTerms || raw.condicoesComerciais?.formaPagamento || DEFAULT_CLAUSES.formaPagamento,
+            incluso: raw.included || raw.condicoesComerciais?.incluso || DEFAULT_CLAUSES.incluso,
+            naoIncluso: raw.notIncluded || raw.condicoesComerciais?.naoIncluso || DEFAULT_CLAUSES.naoIncluso,
+            regrasGerais: raw.rules || raw.regrasViagem || raw.condicoesComerciais?.regrasGerais || DEFAULT_CLAUSES.regrasGerais,
+            politicaCancelamento: raw.cancellationPolicy || DEFAULT_CLAUSES.politicaCancelamento,
           },
         };
       }
@@ -413,10 +537,10 @@
           </div>
 
           <div class="condition-card" style="margin-bottom: 18px;">
-            <div><strong>Forma de Pagamento:</strong> ${escapeHtml(doc.condicoesComerciais.formaPagamento || "A combinar.")}</div>
+            <div><strong>Cláusula de Pagamento e Quitação:</strong> ${escapeHtml(doc.condicoesComerciais.formaPagamento)}</div>
             ${
               doc.sinalPrevisto > 0 || doc.sinalPago > 0 || doc.vencimentoSaldo
-                ? `<div style="margin-top: 6px;">
+                ? `<div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #cbd5e1;">
                     ${doc.sinalPrevisto > 0 ? `Sinal previsto: <strong>${money(doc.sinalPrevisto)}</strong> · ` : ""}
                     ${doc.sinalPago > 0 ? `Sinal pago: <strong>${money(doc.sinalPago)}</strong> · Saldo restante: <strong>${money(saldoRestante)}</strong> · ` : ""}
                     ${doc.vencimentoSaldo ? `Vencimento do saldo: <strong>${escapeHtml(formatDateBR(doc.vencimentoSaldo))}</strong>` : ""}
@@ -425,24 +549,57 @@
             }
           </div>
 
-          <div class="section-title">Regras de Viagem &amp; Cancelamento</div>
-          <div class="rules-box">${escapeHtml(doc.condicoesComerciais.regrasGerais || "Tolerância de atraso no embarque: 15 minutos.")}${doc.condicoesComerciais.politicaCancelamento ? `\n\nPolítica de Reserva e Cancelamento:\n${escapeHtml(doc.condicoesComerciais.politicaCancelamento)}` : ""}</div>
+          <div class="section-title">Atrasos, Danos, Responsabilidades &amp; Cancelamento</div>
+          <div class="rules-box">${escapeHtml(doc.condicoesComerciais.regrasGerais)}${doc.condicoesComerciais.politicaCancelamento ? `\n\nPolítica de Reserva, Cancelamento e Reembolso:\n${escapeHtml(doc.condicoesComerciais.politicaCancelamento)}` : ""}</div>
 
           <div class="section-title">Mapa Esquemático de Poltronas</div>
           <div class="seatmap-section">
             ${seatMapSvg}
           </div>
 
-          <footer class="footer-note">
-            <div>
-              <strong>Garcia Turismo</strong> · Juazeiro-BA / Petrolina-PE<br />
-              WhatsApp: (74) 98816-4009 · E-mail: garciaturismoeviagens@gmail.com
+          <section class="digital-signatures-section">
+            <div class="digital-signatures-header">
+              <div class="section-title" style="margin-bottom: 0;">ASSINATURAS DIGITAIS</div>
+              <div class="digital-signatures-badge">Este documento será assinado digitalmente pelas partes.</div>
             </div>
-            <div style="text-align: center; min-width: 240px;">
-              <div style="border-bottom: 1px solid #334155; height: 24px; margin-bottom: 4px;"></div>
-              <span>Assinatura do Contratante / Data</span>
+
+            <div class="digital-signatures-grid">
+              <div class="digital-signature-card">
+                <div class="digital-signature-meta">
+                  <div class="digital-signature-role">CONTRATANTE</div>
+                  <div><strong>Nome / Razão Social:</strong> ${escapeHtml(doc.cliente && doc.cliente !== "Cliente" ? doc.cliente : "A preencher")}</div>
+                  <div><strong>CPF / CNPJ:</strong> ${escapeHtml(doc.clienteDocumento || "A preencher")}</div>
+                  <div><strong>Representante:</strong> ${escapeHtml(doc.clienteRepresentante || (doc.cliente && doc.cliente !== "Cliente" ? doc.cliente : "A preencher"))}</div>
+                </div>
+                <div class="digital-signature-box">
+                  <span style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.4px;">Assinatura Digital — Contratante</span>
+                  <span style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">Espaço reservado para validação por plataforma eletrônica</span>
+                </div>
+              </div>
+
+              <div class="digital-signature-card">
+                <div class="digital-signature-meta">
+                  <div class="digital-signature-role">CONTRATADA</div>
+                  <div><strong>Razão Social:</strong> ${escapeHtml(CONTRATADA_LEGAL_INFO.razaoSocial)}</div>
+                  <div><strong>CNPJ:</strong> ${escapeHtml(CONTRATADA_LEGAL_INFO.cnpj)}</div>
+                  <div><strong>Representante:</strong> ${escapeHtml(doc.responsavel && doc.responsavel !== "Responsável" && doc.responsavel !== "Garcia Turismo" ? doc.responsavel : CONTRATADA_LEGAL_INFO.representantePadrao)}</div>
+                </div>
+                <div class="digital-signature-box">
+                  <span style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.4px;">Assinatura Digital — Contratada</span>
+                  <span style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">Espaço reservado para validação por plataforma eletrônica</span>
+                </div>
+              </div>
             </div>
-          </footer>
+
+            <footer class="footer-note">
+              <div>
+                <strong>Garcia Turismo</strong> · (${escapeHtml(CONTRATADA_LEGAL_INFO.razaoSocial)} — CNPJ ${escapeHtml(CONTRATADA_LEGAL_INFO.cnpj)})
+              </div>
+              <div>
+                WhatsApp: (74) 98816-4009 · E-mail: garciaturismoeviagens@gmail.com
+              </div>
+            </footer>
+          </section>
         `;
 
         window.__GARCIA_PDF_READY__ = true;
@@ -485,7 +642,10 @@
               image: { type: "jpeg", quality: 0.98 },
               html2canvas: { scale: 2, useCORS: true, scrollY: 0, backgroundColor: "#ffffff" },
               jsPDF: { unit: "in", format: "a4", orientation: "portrait" },
-              pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+              pagebreak: {
+                mode: ["css", "legacy"],
+                avoid: [".digital-signatures-section", ".digital-signature-card", ".seatmap-section"],
+              },
             })
             .from(root)
             .save();
