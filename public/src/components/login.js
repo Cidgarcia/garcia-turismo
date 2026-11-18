@@ -15,7 +15,7 @@ export function renderLoginScreen() {
         </p>
 
         <form id="loginForm" class="space-y-4 mt-6">
-          <input id="loginUser" class="field" type="text" placeholder="Usuário" required />
+          <input id="loginUser" class="field" type="text" placeholder="E-mail ou usuário (ex: junior)" required />
           <input id="loginPass" class="field" type="password" placeholder="Senha" required />
 
           <button type="submit" class="w-full rounded-2xl px-5 py-4 btn-primary font-semibold">

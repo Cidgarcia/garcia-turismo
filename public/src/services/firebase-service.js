@@ -319,12 +319,42 @@ const buyers = recordApi("cards", "buyer");
 const cardSchedules = recordApi("cards", "cardSchedule");
 const orcamentos = recordApi("orcamentos");
 
+const USERNAME_ALIASES = Object.freeze({
+  junior: "junior@garciaturismo.com",
+  admin: "admin@garciaturismo.com",
+  garcia: "garciaturismoeviagens@gmail.com",
+});
+
+function resolveLoginEmail(rawInput = "") {
+  const trimmed = String(rawInput || "").trim();
+  if (!trimmed) return "";
+  const lower = trimmed.toLowerCase();
+  if (USERNAME_ALIASES[lower]) return USERNAME_ALIASES[lower];
+  if (!trimmed.includes("@")) return `${lower}@garciaturismo.com`;
+  return trimmed;
+}
+
 export const firebaseService = {
   isConfigured: isFirebaseConfigReady,
 
-  async signIn(email, password) {
+  async signIn(emailInput, passwordInput) {
     const { auth, authSdk } = await firebaseContext();
-    const result = await authSdk.signInWithEmailAndPassword(auth, email, password);
+    const email = resolveLoginEmail(emailInput);
+    const password = String(passwordInput || "").trim();
+    let result;
+    try {
+      result = await authSdk.signInWithEmailAndPassword(auth, email, password);
+    } catch (authError) {
+      if (password !== password.toLowerCase()) {
+        try {
+          result = await authSdk.signInWithEmailAndPassword(auth, email, password.toLowerCase());
+        } catch {
+          throw new Error("Usuário ou senha incorretos.");
+        }
+      } else {
+        throw new Error("Usuário ou senha incorretos.");
+      }
+    }
     cachedProfile = null;
     try {
       const profile = await currentProfile();
